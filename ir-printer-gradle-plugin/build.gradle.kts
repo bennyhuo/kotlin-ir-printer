@@ -28,3 +28,7 @@ gradlePlugin {
         }
     }
 }
+
+kotlin {
+    jvmToolchain(8)
+}

@@ -1,5 +1,7 @@
 package com.bennyhuo.kotlin.ir.printer.compiler
 
+import com.bennyhuo.kotlin.ir.printer.compiler.options.Option
+import com.bennyhuo.kotlin.ir.printer.compiler.options.Options
 import com.google.auto.service.AutoService
 import org.jetbrains.kotlin.backend.common.extensions.IrGenerationExtension
 import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
@@ -19,6 +21,10 @@ internal class PrinterCompilerPluginRegistrar : CompilerPluginRegistrar() {
 
     override fun ExtensionStorage.registerExtensions(configuration: CompilerConfiguration) {
         logger = Logger(configuration.get(CLIConfigurationKeys.ORIGINAL_MESSAGE_COLLECTOR_KEY)!!)
+
+        Option.initialize(configuration)
+        Option.dump()
+
         IrGenerationExtension.registerExtension(extension)
     }
 }

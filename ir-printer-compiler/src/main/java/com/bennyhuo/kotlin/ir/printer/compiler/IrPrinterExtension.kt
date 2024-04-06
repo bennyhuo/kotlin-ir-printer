@@ -18,24 +18,28 @@ const val OUTPUT_TYPE_RAW_IR = 0
 const val OUTPUT_TYPE_KOTLIN_LIKE = 1
 const val OUTPUT_TYPE_KOTLIN_LIKE_JC = 2
 
+const val DEFAULT_INDENT = "  "
+
 internal class IrSourcePrinterExtension : IrGenerationExtension {
 
     override fun generate(moduleFragment: IrModuleFragment, pluginContext: IrPluginContext) {
         val outputDirPath = Options.outputDirPath()
+        logger.warn("/// generate, $outputDirPath")
         if (outputDirPath.isBlank()) return
 
         val outputDir = File(outputDirPath)
 
         moduleFragment.files.forEach { irFile ->
             outputDir.resolve(irFile.packageFqName.asString().replace('.', File.separatorChar)).run {
+                logger.warn("/// + ${this.path}")
                 mkdirs()
                 val source = when (Options.outputType()) {
-                    OUTPUT_TYPE_KOTLIN_LIKE_JC -> irFile.dumpSrc(Options.indent())
+                    OUTPUT_TYPE_KOTLIN_LIKE_JC -> irFile.dumpSrc(DEFAULT_INDENT)
                     OUTPUT_TYPE_KOTLIN_LIKE -> irFile.dumpKotlinLike(
                         KotlinLikeDumpOptions(
                             printFileName = false,
                             printFilePath = false,
-                            indent = Options.indent()
+                            indent = DEFAULT_INDENT
                         )
                     )
 

@@ -25,6 +25,5 @@ open class PrinterExtension {
     var isEnabled = true
     var outputDir: String? = null
     var outputType: OutputType = OutputType.KOTLIN_LIKE_JETPACK_COMPOSE_STYLE
-    var indent = "    "
 
 }
