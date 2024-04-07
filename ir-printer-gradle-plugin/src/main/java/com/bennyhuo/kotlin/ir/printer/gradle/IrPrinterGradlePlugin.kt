@@ -35,11 +35,13 @@ class IrPrinterGradlePlugin : KotlinCompilerPluginSupportPlugin {
         val options = ArrayList<SubpluginOption>()
         options += SubpluginOption("indent", extension.indent)
         options += SubpluginOption("outputType", extension.outputType.ordinal.toString())
-
-        val path = listOf("outputs", "kotlin", "ir").joinToString(File.separator)
         options += SubpluginOption(
             "outputDir",
-            extension.outputDir ?: project.layout.buildDirectory.file(path).get().asFile.path
+            extension.outputDir?.takeIf {
+                it.isNotBlank()
+            } ?: project.layout.buildDirectory.file(
+                listOf("outputs", "kotlin", "ir").joinToString(File.separator)
+            ).get().asFile.path
         )
         return project.provider { options }
     }
