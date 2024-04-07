@@ -3,6 +3,14 @@ package com.bennyhuo.kotlin.ir.printer.compiler.options
 object Options {
 
     @JvmField
+    val indent = Option(
+        "indent",
+        "  ",
+        "Indent of the printed source code. Default for two spaces.",
+        "",
+    )
+
+    @JvmField
     val outputType = Option(
         "outputType",
         2,

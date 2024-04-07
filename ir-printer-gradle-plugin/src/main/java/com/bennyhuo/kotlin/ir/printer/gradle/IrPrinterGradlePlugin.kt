@@ -31,14 +31,15 @@ class IrPrinterGradlePlugin : KotlinCompilerPluginSupportPlugin {
     ): Provider<List<SubpluginOption>> {
         val project = kotlinCompilation.target.project
         val extension = project.extensions.getByType(PrinterExtension::class.java)
+
         val options = ArrayList<SubpluginOption>()
+        options += SubpluginOption("indent", extension.indent)
         options += SubpluginOption("outputType", extension.outputType.ordinal.toString())
 
-        val outputDir = extension.outputDir ?: project.layout.buildDirectory.file("kotlin${File.separator}ir").get().asFile.path
-        project.logger.warn("/// gradle plugin: $outputDir")
+        val path = listOf("outputs", "kotlin", "ir").joinToString(File.separator)
         options += SubpluginOption(
             "outputDir",
-            outputDir
+            extension.outputDir ?: project.layout.buildDirectory.file(path).get().asFile.path
         )
         return project.provider { options }
     }

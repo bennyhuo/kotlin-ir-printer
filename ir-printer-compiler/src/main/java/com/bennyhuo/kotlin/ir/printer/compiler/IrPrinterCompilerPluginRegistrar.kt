@@ -23,8 +23,6 @@ internal class PrinterCompilerPluginRegistrar : CompilerPluginRegistrar() {
         logger = Logger(configuration.get(CLIConfigurationKeys.ORIGINAL_MESSAGE_COLLECTOR_KEY)!!)
 
         Option.initialize(configuration)
-        Option.dump()
-
         IrGenerationExtension.registerExtension(extension)
     }
 }

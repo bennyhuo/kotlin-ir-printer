@@ -5,7 +5,7 @@ plugins {
 }
 
 irPrinter {
-
+    indent = "    "
 }
 
 android {
