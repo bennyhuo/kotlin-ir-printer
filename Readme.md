@@ -4,6 +4,65 @@
 
 Print transformed Kotlin IR into sources. Raw IR and two Kotlin like source code styles are supported. 
 
+## Background
+
+If you are interesting with the output of any compiler plugins, such as Jetpack Compose, you will definitely need this.
+
+When we write the code as below:
+
+```kt
+@Composable
+fun Greeting(name: String, modifier: Modifier = Modifier) {
+    Text(
+        text = "Hello $name!",
+        modifier = modifier
+    )
+}
+```
+
+You may wonder what will happen to the  function `Greeting`. You will most likely decompile the compiled classes back into Java sources, but that would be a mess.
+
+With IR printer, you will get the Kotlin source code or raw IR structure directly from the Kotlin IR. So the corresponding output of `Greeting` will be:
+
+```kt
+@Composable
+@ComposableTarget(applier = "androidx.compose.ui.UiComposable")
+fun Greeting(name: String, modifier: Modifier?, $composer: Composer?, $changed: Int, $default: Int) {
+    $composer = $composer.startRestartGroup(853713123)
+    sourceInformation($composer, "C(Greeting)P(1)30@1094L70:MainActivity.kt#tztr8q")
+    val $dirty = $changed
+    if ($default and 0b0001 != 0) {
+        $dirty = $dirty or 0b0110
+    } else if ($changed and 0b1110 == 0) {
+        $dirty = $dirty or if ($composer.changed(name)) 0b0100 else 0b0010
+    }
+    if ($default and 0b0010 != 0) {
+        $dirty = $dirty or 0b00110000
+    } else if ($changed and 0b01110000 == 0) {
+        $dirty = $dirty or if ($composer.changed(modifier)) 0b00100000 else 0b00010000
+    }
+    if ($dirty and 0b01011011 != 0b00010010 || !$composer.skipping) {
+        if ($default and 0b0010 != 0) {
+            modifier = Companion
+        }
+        if (isTraceInProgress()) {
+            traceEventStart(853713123, $dirty, -1, "com.bennyhuo.kotlin.printer.sample.Greeting (MainActivity.kt:29)")
+        }
+        Text("Hello $name!", modifier, <unsafe-coerce>(0L), <unsafe-coerce>(0L), null, null, null, <unsafe-coerce>(0L), null, null, <unsafe-coerce>(0L), <unsafe-coerce>(0), false, 0, 0, null, null, $composer, 0b01110000 and $dirty, 0, 131068)
+        if (isTraceInProgress()) {
+            traceEventEnd()
+        }
+    } else {
+        $composer.skipToGroupEnd()
+    }
+    $composer.endRestartGroup()?.updateScope { $composer: Composer?, $force: Int ->
+        Greeting(name, modifier, $composer, updateChangedFlags($changed or 0b0001), $default)
+    }
+}
+```
+
+The output file will be located in `$buildDir/outputs/kotlin/ir` be default and can be customized via the gradle extensions. 
+
 ## Try it
 
 Configure the repos:
