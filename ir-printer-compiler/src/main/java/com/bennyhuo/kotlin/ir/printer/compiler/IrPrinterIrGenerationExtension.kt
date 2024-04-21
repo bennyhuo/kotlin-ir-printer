@@ -25,7 +25,7 @@ internal class IrSourcePrinterExtension : IrGenerationExtension {
         val outputDirPath = Options.outputDirPath()
         if (outputDirPath.isBlank()) return
         val outputDir = File(outputDirPath)
-        outputDir.deleteDirectoryContents()
+        outputDir.deleteRecursively()
 
         val indent = Options.indent().takeIf { it.isNotEmpty() } ?: "  "
 
