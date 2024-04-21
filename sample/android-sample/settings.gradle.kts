@@ -19,7 +19,8 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "compose-sample"
-include(":app")
+rootProject.name = "android-sample"
+include(":compose-app")
+include(":room-app")
 
 includeBuild("../../")
