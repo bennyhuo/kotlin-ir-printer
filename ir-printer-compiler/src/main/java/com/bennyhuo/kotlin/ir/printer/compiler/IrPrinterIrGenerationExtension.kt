@@ -7,6 +7,7 @@ import com.bennyhuo.kotlin.ir.printer.compiler.output.dumpSrc
 import java.io.File
 import org.jetbrains.kotlin.backend.common.extensions.IrGenerationExtension
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
+import org.jetbrains.kotlin.incremental.deleteDirectoryContents
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 import org.jetbrains.kotlin.ir.declarations.name
 import org.jetbrains.kotlin.ir.util.dump
@@ -24,6 +25,7 @@ internal class IrSourcePrinterExtension : IrGenerationExtension {
         val outputDirPath = Options.outputDirPath()
         if (outputDirPath.isBlank()) return
         val outputDir = File(outputDirPath)
+        outputDir.deleteDirectoryContents()
 
         val indent = Options.indent().takeIf { it.isNotEmpty() } ?: "  "
 
@@ -43,7 +45,7 @@ internal class IrSourcePrinterExtension : IrGenerationExtension {
                     else -> irFile.dump()
                 }
 
-                resolve("${irFile.name}.kt").writeText(source)
+                resolve(irFile.name).writeText(source)
             }
         }
     }
