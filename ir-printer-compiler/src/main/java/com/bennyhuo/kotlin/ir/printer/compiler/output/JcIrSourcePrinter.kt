@@ -341,7 +341,8 @@ internal class JcIrSourcePrinter(
                 // no names for
                 "invoke", "get", "set" -> ""
                 "iterator", "hasNext", "next", "getValue", "setValue",
-                "noWhenBranchMatchedException" -> name
+                "noWhenBranchMatchedException",
+                "dataClassArrayMemberToString", "dataClassArrayMemberHashCode" -> name
                 "CHECK_NOT_NULL" -> "!!"
                 else -> {
                     if (name.startsWith("component")) name
@@ -414,6 +415,10 @@ internal class JcIrSourcePrinter(
                     print(".")
                     print(opSymbol)
                     print("()")
+                }
+                "dataClassArrayMemberToString", "dataClassArrayMemberHashCode" -> {
+                    print(opSymbol)
+                    expression.printArgumentList()
                 }
                 else -> {
                     if (name.startsWith("component")) {
