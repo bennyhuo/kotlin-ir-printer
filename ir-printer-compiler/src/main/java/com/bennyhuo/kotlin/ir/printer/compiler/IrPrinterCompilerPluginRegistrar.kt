@@ -13,7 +13,7 @@ lateinit var logger: Logger
 
 @ExperimentalCompilerApi
 @AutoService(CompilerPluginRegistrar::class)
-internal class PrinterCompilerPluginRegistrar : CompilerPluginRegistrar() {
+class IrPrinterCompilerPluginRegistrar : CompilerPluginRegistrar() {
 
     private val extension = IrSourcePrinterExtension()
 

@@ -116,6 +116,7 @@ import org.jetbrains.kotlin.types.Variance
 import org.jetbrains.kotlin.utils.Printer
 import java.util.Locale
 import kotlin.math.abs
+import org.jetbrains.kotlin.ir.expressions.IrSyntheticBody
 
 /**
  * This is a copied from the Jetpack Compose compiler with a little optimization.
@@ -258,7 +259,7 @@ internal class JcIrSourcePrinter(
 
     fun IrFunction.printBody() {
         val body = body ?: return
-        if (body.statements.isEmpty()) {
+        if (body !is IrSyntheticBody && body.statements.isEmpty()) {
             println("{ }")
         } else {
             bracedBlock {
