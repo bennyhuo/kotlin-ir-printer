@@ -40,7 +40,7 @@ class IrPrinterGradlePlugin : KotlinCompilerPluginSupportPlugin {
             extension.outputDir?.takeIf {
                 it.isNotBlank()
             } ?: project.layout.buildDirectory.file(
-                listOf("outputs", "kotlin", "ir").joinToString(File.separator)
+                listOf("outputs", "kotlin", "ir", kotlinCompilation.target.targetName).joinToString(File.separator)
             ).get().asFile.path
         )
         return project.provider { options }
