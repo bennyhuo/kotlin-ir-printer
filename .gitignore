@@ -5,3 +5,4 @@ build
 composite_build.local
 .fleet
 .kotlin
+.DS_Store

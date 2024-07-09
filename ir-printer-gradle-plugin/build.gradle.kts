@@ -7,6 +7,7 @@ plugins {
 dependencies {
     implementation(kotlin("gradle-plugin-api"))
     implementation(kotlin("stdlib"))
+    implementation(kotlin("gradle-plugin"))
 }
 
 buildConfig {
