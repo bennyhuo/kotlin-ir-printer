@@ -33,8 +33,13 @@ class IrPrinterGradlePlugin : KotlinCompilerPluginSupportPlugin {
     ): Provider<List<SubpluginOption>> {
         val project = kotlinCompilation.target.project
         val target = kotlinCompilation.target
+        val extension = project.extensions.getByType(PrinterExtension::class.java)
 
-        if (kotlinCompilation.name == KotlinCompilation.MAIN_COMPILATION_NAME && target is KotlinNativeTarget) {
+        if (
+            extension.isLlvmIrEnabled &&
+            kotlinCompilation.name == KotlinCompilation.MAIN_COMPILATION_NAME &&
+            target is KotlinNativeTarget
+        ) {
             val konanTempDir = kotlinCompilation.getOrConfigKonanTempDir()
             val konanConfig = KonanConfig(project)
             val llvmDisPath = File(konanConfig.llvmHome, "bin/llvm-dis").absolutePath
@@ -49,8 +54,6 @@ class IrPrinterGradlePlugin : KotlinCompilerPluginSupportPlugin {
                 }
             }
         }
-        
-        val extension = project.extensions.getByType(PrinterExtension::class.java)
 
         val options = ArrayList<SubpluginOption>()
         options += SubpluginOption("indent", extension.indent)
