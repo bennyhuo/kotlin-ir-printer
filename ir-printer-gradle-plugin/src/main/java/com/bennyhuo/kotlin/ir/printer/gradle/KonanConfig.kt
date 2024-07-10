@@ -43,6 +43,6 @@ fun KotlinCompilation<*>.getOrConfigKonanTempDir(): String {
         println("Konan temporary dir is set to: $defaultKonanDir by default.")
         return defaultKonanDir
     }
-    println("Konan temporary dir is set to: $userDefinedKonanDir by use.")
+    println("Konan temporary dir is set to: $userDefinedKonanDir by user.")
     return userDefinedKonanDir
 }
