@@ -44,5 +44,9 @@ abstract class LlvmDisTask : DefaultTask() {
         inputDir.listFiles()?.filter { it.name.endsWith(".ll") }?.forEach {
             it.renameTo(File(outputPath.get(), it.name))
         }
+        // copy api.cpp if exists.
+        inputDir.listFiles()?.filter { it.name.endsWith(".cpp") }?.forEach {
+            it.copyTo(File(outputPath.get(), it.name))
+        }
     }
 }
