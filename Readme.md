@@ -2,9 +2,11 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) [![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.bennyhuo.kotlin/ir-printer-gradle-plugin/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.bennyhuo.kotlin/ir-printer-gradle-plugin)
 
-Print transformed Kotlin IR into sources. Raw IR and two Kotlin like source code styles are supported. 
+Print transformed Kotlin IR into sources. Raw IR and two Kotlin like source code styles are supported. LLVM bitcode will also be disassembled on Kotlin Native targets.
 
-## Background
+## Introduction
+
+### Kotlin IR
 
 If you are interesting with the output of any compiler plugins, such as Jetpack Compose, you will definitely need this.
 
@@ -61,7 +63,29 @@ fun Greeting(name: String, modifier: Modifier?, $composer: Composer?, $changed: 
 }
 ```
 
-The output file will be located in `$buildDir/outputs/kotlin/ir` be default and can be customized via the gradle extensions. 
+The output file will be located in `$buildDir/outputs/kotlin/ir` by default and can be customized via the gradle extensions.
+
+### LLVM IR
+
+It is helpful to review the LLVM IR if you want to dive into Kotlin Native. The LLVM bitcode file, which is named out.bc, are always deleted after generating the binary outputs. This project will help you keep the bitcode files and disassemble it into LLVM IR.
+
+You can run the gradle task named like `disassemble<binary-name><target-name>Bitcode` on a Kotlin Native project, for example on macos_arm64. After that, you will get the whole files in directory `<build-dir>/outputs` like below: 
+
+```bash
+kotlin
+├── ir
+│   └── macosArm64
+│       ├── Main.kt
+├── llvm-bc
+│   └── macosArm64
+│       ├── kotlin-native-sample.kexe.o
+│       └── out.bc
+└── llvm-ir
+    └── macosArm64
+        └── out.ll
+```
+
+'out.ll' is the disassembled LLVM IR, you can view it with any text editor you like.
 
 ## Try it
 
@@ -100,6 +124,7 @@ plugins {
 
 irPrinter {
     isEnabled = true // default: true
+    isLlvmIrEnabled = true // default: true, set to false to disable LLVM IR generating only.
     indent = "    " //  default: "  "
     outputDir = "/path/to/output" // default: <project>/build/outputs/kotlin/ir
     outputType = OutputType.KOTLIN_LIKE_JETPACK_COMPOSE_STYLE
@@ -117,6 +142,16 @@ for Android project:
 ```
 ./gradlew :app:compileDebugKotlin
 ```
+
+Kotlin IR will be printed after compiling.
+
+For Native project, for example on target macos_arm64: 
+
+```
+./gradlew disassembleDebugExecutableMacosArm64Bitcode
+```
+
+LLVM IR will be generated after this.
 
 ## Change Log
 
