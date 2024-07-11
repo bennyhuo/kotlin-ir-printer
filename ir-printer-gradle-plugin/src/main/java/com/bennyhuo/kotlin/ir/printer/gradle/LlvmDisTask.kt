@@ -6,7 +6,10 @@ import org.gradle.api.GradleException
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.InputDirectory
 import org.gradle.api.tasks.OutputDirectory
+import org.gradle.api.tasks.PathSensitive
+import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 
 /**
@@ -22,7 +25,8 @@ abstract class LlvmDisTask : DefaultTask() {
     @get:Input
     abstract val llvmDisPath: Property<String>
 
-    @get:Input
+    @get:InputDirectory
+    @get:PathSensitive(PathSensitivity.RELATIVE)
     abstract val konanTempDir: Property<String>
 
     @get:OutputDirectory
