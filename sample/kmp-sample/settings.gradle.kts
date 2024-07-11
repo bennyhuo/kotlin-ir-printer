@@ -1,4 +1,5 @@
 rootProject.name = "KmpComposeSample"
+enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 pluginManagement {
     repositories {
