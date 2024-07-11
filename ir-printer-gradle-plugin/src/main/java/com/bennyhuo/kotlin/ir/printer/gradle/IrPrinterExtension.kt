@@ -22,9 +22,9 @@ enum class OutputType {
 
 open class PrinterExtension {
 
-    var isEnabled = true
+    var isEnabled: Boolean = true
     var isLlvmIrEnabled: Boolean = true
-    var indent = "  "
+    var indent: String = "  "
     var outputDir: String? = null
     var outputType: OutputType = OutputType.KOTLIN_LIKE_JETPACK_COMPOSE_STYLE
 
