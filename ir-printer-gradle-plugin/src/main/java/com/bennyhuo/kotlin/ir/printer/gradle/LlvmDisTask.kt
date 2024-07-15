@@ -46,7 +46,7 @@ abstract class LlvmDisTask : DefaultTask() {
         }
         // copy api.cpp if exists.
         inputDir.listFiles()?.filter { it.name.endsWith(".cpp") }?.forEach {
-            it.copyTo(File(outputPath.get(), it.name))
+            it.copyTo(File(outputPath.get(), it.name), overwrite = true)
         }
     }
 }
