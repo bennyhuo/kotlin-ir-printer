@@ -23,7 +23,7 @@ class KonanConfig(val project: Project) {
         project.file("${konanHome}/konan/konan.properties").inputStream().use(::load)
     }
 
-    val dependenciesRoot: File = DependencyDirectories.getDependenciesRoot(project.konanDataDir)
+    val dependenciesRoot: File = DependencyDirectories.defaultDependenciesRoot
 
     val llvmHome: File = File(
         dependenciesRoot,

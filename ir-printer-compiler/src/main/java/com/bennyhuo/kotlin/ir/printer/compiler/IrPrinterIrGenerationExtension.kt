@@ -30,7 +30,7 @@ internal class IrSourcePrinterExtension : IrGenerationExtension {
         val indent = Options.indent().takeIf { it.isNotEmpty() } ?: "  "
 
         moduleFragment.files.forEach { irFile ->
-            outputDir.resolve(irFile.packageFqName.asString().replace('.', File.separatorChar)).run {
+            outputDir.resolve(irFile.fqName.asString().replace('.', File.separatorChar)).run {
                 mkdirs()
                 val source = when (Options.outputType()) {
                     OUTPUT_TYPE_KOTLIN_LIKE_JC -> irFile.dumpSrc(indent)
