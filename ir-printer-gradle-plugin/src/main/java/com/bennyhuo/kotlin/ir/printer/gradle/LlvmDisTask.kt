@@ -23,7 +23,7 @@ abstract class LlvmDisTask : DefaultTask() {
     }
 
     @get:Input
-    abstract val llvmDisPath: Property<String>
+    abstract val llvmDisPath: Property<Lazy<String>>
 
     @get:InputDirectory
     @get:PathSensitive(PathSensitivity.RELATIVE)
@@ -36,7 +36,7 @@ abstract class LlvmDisTask : DefaultTask() {
     fun run() {
         val inputDir = File(konanTempDir.get())
         inputDir.list()?.filter { it.endsWith(".bc") }?.forEach {
-            val result = executeCommand("${llvmDisPath.get()} $it", inputDir, logger)
+            val result = executeCommand("${llvmDisPath.get().value} $it", inputDir, logger)
             if(!result.isOk) {
                 throw GradleException("Failed to disassemble $it.")
             }
