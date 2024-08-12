@@ -14,22 +14,28 @@ val Project.konanDataDir: String?
 val Project.nativeHome: String?
     get() = findProperty("kotlin.native.home")?.toString()
 
-class KonanConfig(val project: Project) {
-    val konanHome: File = (project.konanDataDir?.let { NativeCompilerDownloader(project).compilerDirectory }
+class KonanConfig(project: Project) {
+    val konanDataDir = project.konanDataDir
+    
+    val konanHome: File = (konanDataDir?.let { NativeCompilerDownloader(project).compilerDirectory }
         ?: project.nativeHome?.let { project.file(it) }
         ?: NativeCompilerDownloader(project).compilerDirectory).absoluteFile
 
-    val konanProperties = Properties().apply {
-        project.file("${konanHome}/konan/konan.properties").inputStream().use(::load)
+    val konanProperties by lazy {
+        Properties().apply {
+            File("${konanHome}/konan/konan.properties").inputStream().use(::load)
+        }
     }
 
-    val dependenciesRoot: File = DependencyDirectories.getDependenciesRoot(project.konanDataDir)
+    val dependenciesRoot = DependencyDirectories.getDependenciesRoot(konanDataDir)
 
-    val llvmHome: File = File(
-        dependenciesRoot,
-        konanProperties.getProperty("llvm.${HostManager.host.name}.dev")
-            ?: throw Exception("Cannot find llvm home for current target: ${HostManager.host}")
-    )
+    val llvmHome: File by lazy {
+        File(
+            dependenciesRoot,
+            konanProperties.getProperty("llvm.${HostManager.host.name}.dev")
+                ?: throw Exception("Cannot find llvm home for current target: ${HostManager.host}")
+        )
+    }
 }
 
 fun KotlinCompilation<*>.getOrConfigKonanTempDir(): String {
