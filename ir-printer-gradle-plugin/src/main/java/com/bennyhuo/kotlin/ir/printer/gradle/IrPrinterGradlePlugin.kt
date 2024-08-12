@@ -42,13 +42,16 @@ class IrPrinterGradlePlugin : KotlinCompilerPluginSupportPlugin {
         ) {
             val konanTempDir = kotlinCompilation.getOrConfigKonanTempDir()
             val konanConfig = KonanConfig(project)
-            val llvmDisPath = File(konanConfig.llvmHome, "bin/llvm-dis").absolutePath
+            // lazily resolve this path after Kotlin Native compiler setup.
+            val llvmDisPathLazy = lazy {
+                File(konanConfig.llvmHome, "bin/llvm-dis").absolutePath
+            }
 
             target.binaries.forEach { binary ->
                 val taskName = "disassemble${binary.name.capitalized()}${target.targetName.capitalized()}Bitcode"
                 project.tasks.register(taskName, LlvmDisTask::class.java) {
                     it.dependsOn(binary.linkTaskName)
-                    it.llvmDisPath.set(llvmDisPath)
+                    it.llvmDisPath.set(llvmDisPathLazy)
                     it.konanTempDir.set(konanTempDir)
                     it.outputPath.set(project.output(target, "llvm-ir"))
                 }
