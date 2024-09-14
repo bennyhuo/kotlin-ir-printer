@@ -322,6 +322,7 @@ internal class JcIrSourcePrinter(
                 "div" -> "/"
                 "rem" -> "%"
                 "rangeTo" -> ".."
+                "rangeUntil" -> "..<"
                 "plusAssign" -> "+="
                 "minusAssign" -> "-="
                 "unaryMinus" -> "-"
