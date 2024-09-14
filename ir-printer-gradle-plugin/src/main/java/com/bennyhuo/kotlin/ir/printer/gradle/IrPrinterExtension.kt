@@ -26,6 +26,6 @@ open class PrinterExtension {
     var isLlvmIrEnabled: Boolean = true
     var indent: String = "  "
     var outputDir: String? = null
-    var outputType: OutputType = OutputType.KOTLIN_LIKE_JETPACK_COMPOSE_STYLE
+    var outputType: OutputType = OutputType.RAW_IR
 
 }
