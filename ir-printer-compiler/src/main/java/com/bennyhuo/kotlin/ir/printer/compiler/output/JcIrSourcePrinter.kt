@@ -346,10 +346,7 @@ internal class JcIrSourcePrinter(
                 "noWhenBranchMatchedException",
                 "dataClassArrayMemberToString", "dataClassArrayMemberHashCode" -> name
                 "CHECK_NOT_NULL" -> "!!"
-                else -> {
-                    if (name.startsWith("component")) name
-                    else error("Unhandled operator $name")
-                }
+                else -> name
             }
 
             val printBinary = when (name) {
