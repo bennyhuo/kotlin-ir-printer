@@ -1192,7 +1192,7 @@ private class KotlinLikeDumper(val p: Printer, val options: KotlinLikeDumpOption
         }
     }
 
-    override fun visitConst(expression: IrConst<*>, data: IrDeclaration?) {
+    override fun visitConst(expression: IrConst, data: IrDeclaration?) {
         val kind = expression.kind
 
         val (prefix, postfix) = when (kind) {
@@ -1281,7 +1281,7 @@ private class KotlinLikeDumper(val p: Printer, val options: KotlinLikeDumpOption
 
     override fun visitElseBranch(branch: IrElseBranch, data: IrDeclaration?) {
         p.printIndent()
-        if ((branch.condition as? IrConst<*>)?.value == true) {
+        if ((branch.condition as? IrConst)?.value == true) {
             p.printWithNoIndent(if (options.printElseAsTrue) "true" else "else")
         } else {
             p.printWithNoIndent("/* else */ ")

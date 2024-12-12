@@ -1,5 +1,3 @@
-package com.bennyhuo.kotlin.ir.printer.compiler.output
-
 /*
  * Copyright 2020 The Android Open Source Project
  *
@@ -15,15 +13,21 @@ package com.bennyhuo.kotlin.ir.printer.compiler.output
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+@file:OptIn(UnsafeDuringIrConstructionAPI::class)
+package com.bennyhuo.kotlin.ir.printer.compiler.output
+
 import com.bennyhuo.kotlin.compiletesting.extensions.ir.escapeCharacters
 import com.bennyhuo.kotlin.compiletesting.extensions.ir.rawStringPreferred
-import org.jetbrains.kotlin.com.intellij.openapi.util.text.StringUtil
+import java.util.Locale
 import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.ir.IrBuiltIns
 import org.jetbrains.kotlin.ir.IrElement
+import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.ObsoleteDescriptorBasedAPI
 import org.jetbrains.kotlin.ir.declarations.IrAnnotationContainer
+import org.jetbrains.kotlin.ir.declarations.IrAnonymousInitializer
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrConstructor
 import org.jetbrains.kotlin.ir.declarations.IrDeclaration
@@ -39,6 +43,7 @@ import org.jetbrains.kotlin.ir.declarations.IrProperty
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.declarations.IrTypeAlias
 import org.jetbrains.kotlin.ir.declarations.IrTypeParameter
+import org.jetbrains.kotlin.ir.declarations.IrValueDeclaration
 import org.jetbrains.kotlin.ir.declarations.IrValueParameter
 import org.jetbrains.kotlin.ir.declarations.IrVariable
 import org.jetbrains.kotlin.ir.declarations.name
@@ -79,6 +84,7 @@ import org.jetbrains.kotlin.ir.expressions.IrSetValue
 import org.jetbrains.kotlin.ir.expressions.IrSpreadElement
 import org.jetbrains.kotlin.ir.expressions.IrStatementOrigin
 import org.jetbrains.kotlin.ir.expressions.IrStringConcatenation
+import org.jetbrains.kotlin.ir.expressions.IrSyntheticBody
 import org.jetbrains.kotlin.ir.expressions.IrThrow
 import org.jetbrains.kotlin.ir.expressions.IrTry
 import org.jetbrains.kotlin.ir.expressions.IrTypeOperator
@@ -87,8 +93,11 @@ import org.jetbrains.kotlin.ir.expressions.IrValueAccessExpression
 import org.jetbrains.kotlin.ir.expressions.IrVararg
 import org.jetbrains.kotlin.ir.expressions.IrWhen
 import org.jetbrains.kotlin.ir.expressions.IrWhileLoop
-import org.jetbrains.kotlin.ir.expressions.impl.IrIfThenElseImpl
+import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
+import org.jetbrains.kotlin.ir.symbols.IrFunctionSymbol
+import org.jetbrains.kotlin.ir.symbols.IrReturnTargetSymbol
 import org.jetbrains.kotlin.ir.symbols.IrTypeAliasSymbol
+import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
 import org.jetbrains.kotlin.ir.types.IrDynamicType
 import org.jetbrains.kotlin.ir.types.IrErrorType
 import org.jetbrains.kotlin.ir.types.IrSimpleType
@@ -103,27 +112,26 @@ import org.jetbrains.kotlin.ir.types.isInt
 import org.jetbrains.kotlin.ir.types.isMarkedNullable
 import org.jetbrains.kotlin.ir.types.isNullableAny
 import org.jetbrains.kotlin.ir.types.isUnit
+import org.jetbrains.kotlin.ir.util.constructedClass
 import org.jetbrains.kotlin.ir.util.isAnnotationClass
 import org.jetbrains.kotlin.ir.util.isInterface
+import org.jetbrains.kotlin.ir.util.isLambda
 import org.jetbrains.kotlin.ir.util.isObject
+import org.jetbrains.kotlin.ir.util.isSetter
+import org.jetbrains.kotlin.ir.util.kotlinFqName
 import org.jetbrains.kotlin.ir.util.parentAsClass
 import org.jetbrains.kotlin.ir.util.primaryConstructor
 import org.jetbrains.kotlin.ir.util.statements
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
+import org.jetbrains.kotlin.ir.visitors.acceptVoid
 import org.jetbrains.kotlin.name.FqName
-import org.jetbrains.kotlin.resolve.descriptorUtil.isAnnotationConstructor
+import org.jetbrains.kotlin.name.SpecialNames
 import org.jetbrains.kotlin.types.Variance
 import org.jetbrains.kotlin.utils.Printer
-import java.util.Locale
-import kotlin.math.abs
-import org.jetbrains.kotlin.ir.expressions.IrSyntheticBody
 
-/**
- * This is a copied from the Jetpack Compose compiler with a little optimization.
- */
-internal fun IrElement.dumpSrc(indent: String = IR_OUTPUT_INDENT_DEFAULT): String {
+fun IrElement.dumpSrc(indent: String = IR_OUTPUT_INDENT_DEFAULT, useFir: Boolean = false): String {
     val sb = StringBuilder()
-    accept(JcIrSourcePrinter(sb, "%tab%"), null)
+    accept(JcIrSourcePrinter(sb, "%tab%", useFir), null)
     return sb
         .toString()
         // replace tabs at beginning of line with white space
@@ -139,20 +147,40 @@ internal fun IrElement.dumpSrc(indent: String = IR_OUTPUT_INDENT_DEFAULT): Strin
         .replace(Regex("}\\n(\\s)*,", RegexOption.MULTILINE), "},")
 }
 
-internal class JcIrSourcePrinter(
+class Scope(
+    val owner: IrFunction? = null,
+    val localValues: HashSet<IrValueDeclaration> = hashSetOf(),
+)
+
+class JcIrSourcePrinter(
     out: Appendable,
     indentUnit: String = "  ",
+    private val useFir: Boolean = false,
 ) : IrElementVisitorVoid {
     private val printer = Printer(out, indentUnit)
+    private var currentScope: Scope = Scope()
 
     private fun IrElement.print() {
         accept(this@JcIrSourcePrinter, null)
     }
+
     private fun print(obj: Any?) = printer.print(obj)
     private fun println(obj: Any?) = printer.println(obj)
     private fun println() = printer.println()
 
     fun printType(type: IrType) = type.renderSrc()
+
+    private inline fun IrFunction.scoped(block: (IrFunction) -> Unit) {
+        val previousScope = currentScope
+        currentScope = Scope(
+            this,
+            HashSet(valueParameters)
+        )
+
+        block(this)
+
+        currentScope = previousScope
+    }
 
     private inline fun indented(body: () -> Unit) {
         printer.pushIndent()
@@ -203,7 +231,7 @@ internal class JcIrSourcePrinter(
             print("noinline ")
         }
         declaration.printAnnotations()
-        print(declaration.name)
+        print(declaration.normalizedName)
         print(": ")
         print(declaration.type.renderSrc())
         declaration.defaultValue?.let { it ->
@@ -214,47 +242,49 @@ internal class JcIrSourcePrinter(
 
     override fun visitSimpleFunction(declaration: IrSimpleFunction) {
         if (declaration.origin == IrDeclarationOrigin.FAKE_OVERRIDE) return
-        declaration.printAnnotations(onePerLine = true)
-        if (declaration.overriddenSymbols.isNotEmpty()) {
-            print("override ")
-        } else {
-            if (
-                declaration.visibility != DescriptorVisibilities.PUBLIC &&
-                declaration.visibility != DescriptorVisibilities.LOCAL
-            ) {
-                print(declaration.visibility.toString().lowercase(Locale.ROOT))
-                print(" ")
+        declaration.scoped {
+            declaration.printAnnotations(onePerLine = true)
+            if (declaration.overriddenSymbols.isNotEmpty()) {
+                print("override ")
+            } else {
+                if (
+                    declaration.visibility != DescriptorVisibilities.PUBLIC &&
+                    declaration.visibility != DescriptorVisibilities.LOCAL
+                ) {
+                    print(declaration.visibility.toString().lowercase(Locale.ROOT))
+                    print(" ")
+                }
+                if (declaration.modality != Modality.FINAL) {
+                    print(declaration.modality.toString().lowercase(Locale.ROOT))
+                    print(" ")
+                }
             }
-            if (declaration.modality != Modality.FINAL) {
-                print(declaration.modality.toString().lowercase(Locale.ROOT))
-                print(" ")
+            if (declaration.isSuspend) {
+                print("suspend ")
             }
+            print("fun ")
+            if (declaration.typeParameters.isNotEmpty()) {
+                print("<")
+                declaration.typeParameters.printJoin(", ")
+                print("> ")
+            }
+            declaration.extensionReceiverParameter?.let {
+                print(it.type.renderSrc())
+                print(".")
+            }
+            print(declaration.name)
+            print("(")
+            declaration.valueParameters.printJoin(", ")
+            print(")")
+            if (!declaration.returnType.isUnit()) {
+                print(": ")
+                print(
+                    declaration.returnType.renderSrc()
+                )
+            }
+            print(" ")
+            declaration.printBody()
         }
-        if (declaration.isSuspend) {
-            print("suspend ")
-        }
-        print("fun ")
-        if (declaration.typeParameters.isNotEmpty()) {
-            print("<")
-            declaration.typeParameters.printJoin(", ")
-            print("> ")
-        }
-        declaration.extensionReceiverParameter?.let {
-            print(it.type.renderSrc())
-            print(".")
-        }
-        print(declaration.name)
-        print("(")
-        declaration.valueParameters.printJoin(", ")
-        print(")")
-        if (!declaration.returnType.isUnit()) {
-            print(": ")
-            print(
-                declaration.returnType.renderSrc()
-            )
-        }
-        print(" ")
-        declaration.printBody()
     }
 
     fun IrFunction.printBody() {
@@ -289,7 +319,7 @@ internal class JcIrSourcePrinter(
         val isInfix = function.isInfix
         if (isOperator) {
             if (name == "not") {
-                // IR tree for `a !== b` looks like `not(equals(a, b))` which makes
+                // IR tree for `a != b` looks like `not(equals(a, b))` which makes
                 // it challenging to print it like the former. To do so, we capture when we are in
                 // a "not" call, and then check to see if the argument is an equals call. if it is,
                 // we will just print the child call and put the transformer into a mode where it
@@ -301,7 +331,8 @@ internal class JcIrSourcePrinter(
                         when (fn.name.asString()) {
                             "equals",
                             "EQEQ",
-                            "EQEQEQ" -> {
+                            "EQEQEQ",
+                                -> {
                                 val prevIsInNotCall = isInNotCall
                                 isInNotCall = true
                                 arg.print()
@@ -322,7 +353,6 @@ internal class JcIrSourcePrinter(
                 "div" -> "/"
                 "rem" -> "%"
                 "rangeTo" -> ".."
-                "rangeUntil" -> "..<"
                 "plusAssign" -> "+="
                 "minusAssign" -> "-="
                 "unaryMinus" -> "-"
@@ -352,7 +382,8 @@ internal class JcIrSourcePrinter(
             val printBinary = when (name) {
                 "equals",
                 "EQEQ",
-                "EQEQEQ" -> when {
+                "EQEQEQ",
+                    -> when {
                     expression.dispatchReceiver?.type?.isInt() == true -> true
                     expression.extensionReceiver?.type?.isInt() == true -> true
                     expression.valueArgumentsCount > 0 &&
@@ -378,7 +409,12 @@ internal class JcIrSourcePrinter(
                     expression.getValueArgument(0)?.print()
                     print(opSymbol)
                 }
-                // invoke
+                "getValue", "setValue" -> {
+                    (expression.dispatchReceiver ?: expression.extensionReceiver)?.print()
+                    print(".")
+                    print(opSymbol)
+                    expression.printArgumentList()
+                }
                 "invoke" -> {
                     (expression.dispatchReceiver ?: expression.extensionReceiver)?.print()
                     expression.printArgumentList()
@@ -403,13 +439,15 @@ internal class JcIrSourcePrinter(
                 }
                 // builtin static operators
                 "greater", "less", "lessOrEqual", "greaterOrEqual", "EQEQ", "EQEQEQ",
-                "ieee754equals" -> {
+                "ieee754equals",
+                    -> {
                     expression.getValueArgument(0)?.print()
                     print(" $opSymbol ")
                     expression.getValueArgument(1)?.print()
                 }
-                "iterator", "hasNext", "next", "getValue", "setValue",
-                "noWhenBranchMatchedException" -> {
+                "iterator", "hasNext", "next",
+                "noWhenBranchMatchedException",
+                    -> {
                     (expression.dispatchReceiver ?: expression.extensionReceiver)?.print()
                     print(".")
                     print(opSymbol)
@@ -450,9 +488,9 @@ internal class JcIrSourcePrinter(
             return
         }
 
-        expression.printExplicitReceiver(".")
+        expression.printExplicitReceiver(".", expression.superQualifierSymbol)
 
-        val prop = (function as? IrSimpleFunction)?.correspondingPropertySymbol?.owner
+        val prop = function.correspondingPropertySymbol?.owner
 
         if (prop != null) {
             val propName = prop.name.asString()
@@ -475,7 +513,10 @@ internal class JcIrSourcePrinter(
         }
     }
 
-    private fun IrMemberAccessExpression<*>.printExplicitReceiver(suffix: String? = null) {
+    private fun IrMemberAccessExpression<*>.printExplicitReceiver(
+        suffix: String? = null,
+        superQualifierSymbol: IrClassSymbol? = null,
+    ) {
         val dispatchReceiver = dispatchReceiver
         val extensionReceiver = extensionReceiver
         val dispatchIsSpecial = dispatchReceiver.let {
@@ -485,7 +526,10 @@ internal class JcIrSourcePrinter(
             it is IrGetValue && it.symbol.owner.name.isSpecial
         }
 
-        if (dispatchReceiver != null && !dispatchIsSpecial) {
+        if (superQualifierSymbol != null) {
+            print("super<${superQualifierSymbol.owner.name}>")
+            suffix?.let(::print)
+        } else if (dispatchReceiver != null && !dispatchIsSpecial) {
             dispatchReceiver.print()
             suffix?.let(::print)
         } else if (extensionReceiver != null && !extensionIsSpecial) {
@@ -496,7 +540,7 @@ internal class JcIrSourcePrinter(
 
     private fun IrFunctionAccessExpression.printArgumentList(
         forceParameterNames: Boolean = false,
-        forceSingleLine: Boolean = false
+        forceSingleLine: Boolean = false,
     ) {
         val arguments = mutableListOf<IrExpression>()
         val paramNames = mutableListOf<String>()
@@ -506,16 +550,20 @@ internal class JcIrSourcePrinter(
             val arg = getValueArgument(i)
             if (arg != null) {
                 val param = symbol.owner.valueParameters[i]
-                val isTrailingLambda = i == symbol.owner.valueParameters.size - 1 &&
-                        (
-                                arg is IrFunctionExpression ||
-                                        (arg is IrBlock && arg.origin == IrStatementOrigin.LAMBDA)
-                                )
+                val isLambda = arg is IrFunctionExpression ||
+                        (arg is IrBlock &&
+                                (arg.origin == IrStatementOrigin.LAMBDA))
+                if (isLambda) {
+                    arg.unwrapLambda()?.let {
+                        returnTargetToCall[it] = this
+                    }
+                }
+                val isTrailingLambda = i == symbol.owner.valueParameters.size - 1 && isLambda
                 if (isTrailingLambda) {
                     trailingLambda = arg
                 } else {
                     arguments.add(arg)
-                    paramNames.add(param.name.asString())
+                    paramNames.add(param.normalizedName)
                 }
             } else {
                 useParameterNames = true
@@ -557,25 +605,39 @@ internal class JcIrSourcePrinter(
         }
     }
 
+    fun IrElement.printWithExplicitBlock() {
+        when (this) {
+            is IrBlock -> {
+                println("<block>{")
+                indented { print() }
+                println()
+                print("}")
+            }
+            else -> print()
+        }
+    }
+
     override fun visitFunctionExpression(expression: IrFunctionExpression) {
         expression.function.printAsLambda()
     }
 
     fun IrFunction.printAsLambda() {
-        print("{")
-        val parameters = valueParameters
-        if (parameters.isNotEmpty()) {
-            print(" ")
-            parameters.printJoin(", ")
-            println(" ->")
-        } else {
+        scoped {
+            print("{")
+            val parameters = valueParameters
+            if (parameters.isNotEmpty()) {
+                print(" ")
+                parameters.printJoin(", ")
+                println(" ->")
+            } else {
+                println()
+            }
+            indented {
+                body?.print()
+            }
             println()
+            println("}")
         }
-        indented {
-            body?.print()
-        }
-        println()
-        println("}")
     }
 
     override fun visitTypeOperator(expression: IrTypeOperatorCall) {
@@ -586,10 +648,12 @@ internal class JcIrSourcePrinter(
             IrTypeOperator.NOT_INSTANCEOF -> {
                 expression.argument.print()
             }
-            IrTypeOperator.CAST, IrTypeOperator.IMPLICIT_CAST, IrTypeOperator.SAFE_CAST -> {
+            IrTypeOperator.CAST, IrTypeOperator.SAFE_CAST, IrTypeOperator.IMPLICIT_CAST -> {
                 expression.argument.print()
             }
             IrTypeOperator.SAM_CONVERSION -> {
+                print(expression.type.renderSrc())
+                print(" ")
                 expression.argument.print()
             }
             IrTypeOperator.IMPLICIT_NOTNULL -> {
@@ -617,11 +681,10 @@ internal class JcIrSourcePrinter(
         println(")")
     }
 
-    @OptIn(ObsoleteDescriptorBasedAPI::class)
     override fun visitConstructorCall(expression: IrConstructorCall) {
-        val constructedClass = expression.symbol.descriptor.constructedClass
+        val constructedClass = expression.symbol.owner.constructedClass
         val name = constructedClass.name
-        val isAnnotation = expression.symbol.descriptor.isAnnotationConstructor()
+        val isAnnotation = constructedClass.isAnnotationClass
         if (isAnnotation) {
             print("@")
         }
@@ -653,7 +716,7 @@ internal class JcIrSourcePrinter(
     override fun visitStringConcatenation(expression: IrStringConcatenation) {
         val arguments = expression.arguments
         val rawStringPreferred = arguments.mapNotNull {
-            (it as? IrConst<*>)?.value?.toString()?.rawStringPreferred()
+            (it as? IrConst)?.value?.toString()?.rawStringPreferred()
         }.let {
             it.isNotEmpty() && it.all { it }
         }
@@ -662,7 +725,7 @@ internal class JcIrSourcePrinter(
         print(quote)
         for (argument in arguments) {
             when {
-                argument is IrConst<*> && argument.kind == IrConstKind.String -> {
+                argument is IrConst && argument.kind == IrConstKind.String -> {
                     if (rawStringPreferred) {
                         print(argument.value.toString())
                     } else {
@@ -698,7 +761,7 @@ internal class JcIrSourcePrinter(
     }
 
     override fun visitWhen(expression: IrWhen) {
-        val isIf = expression.origin == IrStatementOrigin.IF || expression is IrIfThenElseImpl
+        val isIf = expression.origin == IrStatementOrigin.IF
         when {
             expression.origin == IrStatementOrigin.OROR -> {
                 val lhs = expression.branches[0].condition
@@ -716,11 +779,11 @@ internal class JcIrSourcePrinter(
             }
             isIf -> {
                 val singleLine = expression.branches.all {
-                    it.result is IrConst<*> || it.result is IrGetValue
+                    it.result is IrConst || it.result is IrGetValue
                 }
                 expression.branches.forEachIndexed { index, branch ->
                     val isElse = index == expression.branches.size - 1 &&
-                            (branch.condition as? IrConst<*>)?.value == true
+                            (branch.condition as? IrConst)?.value == true
                     when {
                         index == 0 -> {
                             print("if (")
@@ -762,7 +825,7 @@ internal class JcIrSourcePrinter(
                 print("when ")
                 bracedBlock {
                     expression.branches.forEach {
-                        val isElse = (it.condition as? IrConst<*>)?.value == true
+                        val isElse = (it.condition as? IrConst)?.value == true
 
                         if (isElse) {
                             print("else")
@@ -794,27 +857,50 @@ internal class JcIrSourcePrinter(
         println("}")
     }
 
-    override fun visitReturn(expression: IrReturn) {
-        val value = expression.value
-        // only print the return statement directly if it is not a lambda
-        val returnTarget = expression.returnTargetSymbol.owner
-        if (returnTarget !is IrFunction ||
-            returnTarget.name.asString() != "<anonymous>" &&
-            returnTarget.origin != IrDeclarationOrigin.ADAPTER_FOR_CALLABLE_REFERENCE) {
-            print("return ")
-        }
-        if (expression.type.isUnit() || value.type.isUnit()) {
-            if (value is IrGetObjectValue) {
-                return
-            } else {
-                value.print()
-            }
-        } else {
-            value.print()
+    // Map local return targets to the corresponding function call.
+    // This is used to print qualified returns.
+    private val returnTargetToCall =
+        mutableMapOf<IrReturnTargetSymbol, IrFunctionAccessExpression>()
+
+    private val IrFunction.isLambda: Boolean
+        get() = name.asString() == SpecialNames.ANONYMOUS_STRING ||
+                origin == IrDeclarationOrigin.ADAPTER_FOR_CALLABLE_REFERENCE
+
+    private val IrFunction.isDelegatedPropertySetter: Boolean
+        get() = isSetter && origin == IrDeclarationOrigin.DELEGATED_PROPERTY_ACCESSOR
+
+    private fun IrExpression.isLastStatementIn(statements: List<IrStatement>): Boolean {
+        val lastStatement = statements.lastOrNull()
+        return when {
+            lastStatement === this -> true
+            lastStatement is IrBlock -> isLastStatementIn(lastStatement.statements)
+            else -> false
         }
     }
 
-    @OptIn(ObsoleteDescriptorBasedAPI::class)
+    private fun IrExpression.isLastStatementIn(function: IrFunction): Boolean =
+        function.body?.let { isLastStatementIn(it.statements) } ?: false
+
+    override fun visitReturn(expression: IrReturn) {
+        val value = expression.value
+        // Only print the return statement directly if it is not the last statement in a lambda,
+        // or a delegated property setter. The latter have a superfluous "return" in K1.
+        val returnTarget = expression.returnTargetSymbol.owner
+        if (returnTarget !is IrFunction ||
+            (!returnTarget.isLambda && (useFir || !returnTarget.isDelegatedPropertySetter)) ||
+            !expression.isLastStatementIn(returnTarget)
+        ) {
+            val suffix = returnTargetToCall[returnTarget.symbol]?.let {
+                "@${it.symbol.owner.name}"
+            } ?: ""
+            print("return$suffix ")
+        }
+        if (value.type.isUnit() && value is IrGetObjectValue) {
+            return
+        }
+        value.print()
+    }
+
     override fun visitBlock(expression: IrBlock) {
         when (expression.origin) {
             IrStatementOrigin.POSTFIX_INCR -> {
@@ -829,7 +915,7 @@ internal class JcIrSourcePrinter(
                 lhs.print()
                 print("--")
             }
-            IrStatementOrigin.LAMBDA, IrStatementOrigin.ADAPTED_FUNCTION_REFERENCE -> {
+            IrStatementOrigin.LAMBDA -> {
                 val function = expression.statements[0] as IrFunction
                 function.printAsLambda()
             }
@@ -842,24 +928,26 @@ internal class JcIrSourcePrinter(
                 val rhsStatement = expression.statements[1]
                 val rhs = when (rhsStatement) {
                     is IrBlock -> {
-                        val target = rhsStatement.statements[1]
-                        when (target) {
-                            is IrVariable -> target.initializer
-                            else -> target
-                        }
+                        if (rhsStatement.statements.size == 2) {
+                            val target = rhsStatement.statements[1]
+                            when (target) {
+                                is IrVariable -> target.initializer
+                                else -> target
+                            }
+                        } else rhsStatement
                     }
                     else -> {
                         rhsStatement
                     }
-                } as IrWhen
-                val call = rhs.branches.last().result as? IrCall
+                } as? IrWhen
+                val call = rhs?.let { it.branches.last().result as? IrCall }
                 if (call == null) {
                     expression.statements.printJoin("\n")
                     return
                 }
                 lhs.initializer?.print()
                 print("?.")
-                print(call.symbol.descriptor.name)
+                print(call.symbol.owner.name)
                 call.printArgumentList()
             }
             IrStatementOrigin.FOR_LOOP -> {
@@ -872,6 +960,8 @@ internal class JcIrSourcePrinter(
     }
 
     override fun visitVariable(declaration: IrVariable) {
+        currentScope.localValues.add(declaration)
+
         if (declaration.isLateinit) {
             print("lateinit")
         }
@@ -880,10 +970,10 @@ internal class JcIrSourcePrinter(
             declaration.isVar -> print("var ")
             else -> print("val ")
         }
-        print(declaration.name)
+        print(declaration.normalizedName)
         declaration.initializer?.let {
             print(" = ")
-            it.print()
+            it.printWithExplicitBlock()
         }
     }
 
@@ -892,7 +982,16 @@ internal class JcIrSourcePrinter(
     }
 
     override fun visitGetValue(expression: IrGetValue) {
-        print(expression.symbol.owner.name)
+        val owner = expression.symbol.owner
+        print(owner.normalizedName)
+
+        if (
+            owner.parent != currentScope.owner &&
+            currentScope.localValues.any { it.name == owner.name }
+        ) {
+            print("@")
+            print(owner.parent.kotlinFqName)
+        }
     }
 
     override fun visitField(declaration: IrField) {
@@ -917,7 +1016,7 @@ internal class JcIrSourcePrinter(
         print(type.renderSrc())
         declaration.initializer?.let {
             print(" = ")
-            it.print()
+            it.printWithExplicitBlock()
         }
     }
 
@@ -933,12 +1032,13 @@ internal class JcIrSourcePrinter(
         print(".")
         print(owner.name)
     }
+
     override fun visitSetField(expression: IrSetField) {
         expression.receiver?.print()
         print(".")
         print(expression.symbol.owner.name)
         print(" = ")
-        expression.value.print()
+        expression.value.printWithExplicitBlock()
     }
 
     override fun visitGetEnumValue(expression: IrGetEnumValue) {
@@ -949,9 +1049,9 @@ internal class JcIrSourcePrinter(
     }
 
     override fun visitSetValue(expression: IrSetValue) {
-        print(expression.symbol.owner.name)
+        print(expression.symbol.owner.normalizedName)
         print(" = ")
-        expression.value.print()
+        expression.value.printWithExplicitBlock()
     }
 
     override fun visitExpressionBody(body: IrExpressionBody) {
@@ -981,7 +1081,7 @@ internal class JcIrSourcePrinter(
             }
         }
         indented {
-            declaration.getter?.let {
+            declaration.getter?.scoped {
                 if (it.origin != IrDeclarationOrigin.DEFAULT_PROPERTY_ACCESSOR) {
                     println()
                     it.printAnnotations()
@@ -994,7 +1094,7 @@ internal class JcIrSourcePrinter(
                     println("}")
                 }
             }
-            declaration.setter?.let {
+            declaration.setter?.scoped {
                 if (it.origin != IrDeclarationOrigin.DEFAULT_PROPERTY_ACCESSOR) {
                     println()
                     it.printAnnotations()
@@ -1022,23 +1122,21 @@ internal class JcIrSourcePrinter(
 
     private fun intAsBinaryString(value: Int): String {
         if (value == 0) return "0"
-        var current = abs(value)
+        var current = if (value >= 0) value else value.inv()
         var result = ""
         while (current != 0 || result.length % 4 != 0) {
             val nextBit = current and 1 != 0
-            current = current shr 1
+            current = current ushr 1
             result = "${if (nextBit) "1" else "0"}$result"
         }
-        return "${if (value < 0) "-" else ""}0b$result"
+        return "0b$result" + if (value < 0) ".inv()" else ""
     }
 
-    override fun visitConst(expression: IrConst<*>) {
+    override fun visitConst(expression: IrConst) {
         val result = when (expression.kind) {
             is IrConstKind.Null -> "${expression.value}"
             is IrConstKind.Boolean -> "${expression.value}"
-            is IrConstKind.Char -> {
-                "'${StringUtil.escapeCharCharacters(expression.value.toString())}'"
-            }
+            is IrConstKind.Char -> "'${expression.value}'"
             is IrConstKind.Byte -> "${expression.value}"
             is IrConstKind.Short -> "${expression.value}"
             is IrConstKind.Int -> {
@@ -1051,14 +1149,7 @@ internal class JcIrSourcePrinter(
             is IrConstKind.Long -> "${expression.value}L"
             is IrConstKind.Float -> "${expression.value}f"
             is IrConstKind.Double -> "${expression.value}"
-            is IrConstKind.String -> {
-                val value = expression.value.toString()
-                if (value.rawStringPreferred() == true) {
-                    "\"\"\"$value\"\"\""
-                } else {
-                    "\"${StringUtil.escapeCharCharacters(expression.value.toString())}\""
-                }
-            }
+            is IrConstKind.String -> "\"${expression.value}\""
         }
         print(result)
     }
@@ -1228,9 +1319,8 @@ internal class JcIrSourcePrinter(
         print("<<CONTAINEREXPR>>")
     }
 
-    @OptIn(ObsoleteDescriptorBasedAPI::class)
     override fun visitDelegatingConstructorCall(expression: IrDelegatingConstructorCall) {
-        val constructedClass = expression.symbol.descriptor.constructedClass
+        val constructedClass = expression.symbol.owner.constructedClass
         val name = constructedClass.name
 
         print("ctor<")
@@ -1250,7 +1340,11 @@ internal class JcIrSourcePrinter(
 
     override fun visitFunctionReference(expression: IrFunctionReference) {
         val function = expression.symbol.owner
+
         expression.printExplicitReceiver("::")
+        if (expression.dispatchReceiver == null && expression.extensionReceiver == null) {
+            print("::")
+        }
 
         val prop = (function as? IrSimpleFunction)?.correspondingPropertySymbol?.owner
 
@@ -1275,13 +1369,37 @@ internal class JcIrSourcePrinter(
     }
 
     override fun visitLocalDelegatedProperty(declaration: IrLocalDelegatedProperty) {
-        print("<<LOCALDELPROP>>")
+        declaration.printAnnotations(onePerLine = true)
+        print(if (declaration.isVar) "var " else "val ")
+        print(declaration.name)
+        print(" by ")
+        bracedBlock {
+            declaration.delegate.acceptVoid(this)
+            declaration.getter.scoped { it.printPropertyAccessor() }
+            declaration.setter?.scoped { it.printPropertyAccessor(isSetter = true) }
+        }
+    }
+
+    private fun IrFunction.printPropertyAccessor(isSetter: Boolean = this.isSetter) {
+        if (origin != IrDeclarationOrigin.DEFAULT_PROPERTY_ACCESSOR) {
+            println()
+            printAnnotations()
+            println()
+            print(if (isSetter) "set" else "get")
+            print("(")
+            valueParameters.printJoin(", ")
+            print(") ")
+            bracedBlock {
+                body?.acceptVoid(this@JcIrSourcePrinter)
+            }
+        }
     }
 
     override fun visitLocalDelegatedPropertyReference(
-        expression: IrLocalDelegatedPropertyReference
+        expression: IrLocalDelegatedPropertyReference,
     ) {
-        print("<<LOCALDELPROPREF>>")
+        print("::")
+        print(expression.delegate.owner.name)
     }
 
     override fun visitLoop(loop: IrLoop) {
@@ -1332,10 +1450,18 @@ internal class JcIrSourcePrinter(
         print("<<TYPEALIAS>>")
     }
 
+    override fun visitAnonymousInitializer(declaration: IrAnonymousInitializer) {
+        println("init {")
+        indented {
+            declaration.body.print()
+        }
+        println()
+        println("}")
+    }
+
     private fun IrType.renderSrc() =
         "${renderTypeAnnotations(annotations)}${renderTypeInner()}"
 
-    @OptIn(ObsoleteDescriptorBasedAPI::class)
     private fun IrType.renderTypeInner() =
         when (this) {
             is IrDynamicType -> "dynamic"
@@ -1343,7 +1469,7 @@ internal class JcIrSourcePrinter(
             is IrErrorType -> "IrErrorType"
 
             is IrSimpleType -> buildTrimEnd {
-                append(classifier.descriptor.name)
+                append((classifier.owner as IrDeclarationWithName).name)
                 if (arguments.isNotEmpty()) {
                     append(
                         arguments.joinToString(prefix = "<", postfix = ">", separator = ", ") {
@@ -1358,8 +1484,6 @@ internal class JcIrSourcePrinter(
                     append(it.renderTypeAbbreviation())
                 }
             }
-
-            else -> "{${javaClass.simpleName} $this}"
         }
 
     private inline fun buildTrimEnd(fn: StringBuilder.() -> Unit): String =
@@ -1392,8 +1516,6 @@ internal class JcIrSourcePrinter(
                 if (variance != Variance.INVARIANT) append(' ')
                 append(type.renderSrc())
             }
-
-            else -> "IrTypeArgument[$this]"
         }
 
     private fun renderTypeAnnotations(annotations: List<IrConstructorCall>) =
@@ -1470,7 +1592,7 @@ internal class JcIrSourcePrinter(
             if (owner is IrFunction) {
                 (0 until expectedCount).map {
                     if (it < owner.valueParameters.size)
-                        owner.valueParameters[it].name.asString()
+                        owner.valueParameters[it].normalizedName
                     else
                         "${it + 1}"
                 }
@@ -1488,7 +1610,7 @@ internal class JcIrSourcePrinter(
         when (irElement) {
             null -> append("<null>")
             is IrConstructorCall -> renderAsAnnotation(irElement)
-            is IrConst<*> -> {
+            is IrConst -> {
                 append('\'')
                 append(irElement.value.toString())
                 append('\'')
@@ -1502,6 +1624,19 @@ internal class JcIrSourcePrinter(
         }
     }
 
+    // Names for temporary variables and synthesized parameters are not consistent between
+    // K1 and K2. This function returns the same name for both frontends.
+    private val IrValueDeclaration.normalizedName: String
+        get() = when {
+            // FIR generates both <iterator> and tmp0_for_iterator...
+            origin == IrDeclarationOrigin.FOR_LOOP_ITERATOR -> "<iterator>"
+            // $anonymous$parameter$x vs $unused$var$x
+            origin == IrDeclarationOrigin.UNDERSCORE_PARAMETER -> "<unused var>"
+            !useFir && name.asString().endsWith("_elvis_lhs") -> "<elvis>"
+            !useFir && name.asString() == "\$this\$null" -> "<this>"
+            else -> name.asString()
+        }
+
     override fun visitElement(element: IrElement) {
         print("<<${element::class.java.simpleName}>>")
     }
@@ -1512,7 +1647,7 @@ private inline fun <T> StringBuilder.appendListWith(
     prefix: String,
     postfix: String,
     separator: String,
-    renderItem: StringBuilder.(T) -> Unit
+    renderItem: StringBuilder.(T) -> Unit,
 ) {
     append(prefix)
     var isFirst = true
@@ -1531,3 +1666,18 @@ private inline fun <T> includeFileNameInExceptionTrace(file: IrFile, body: () ->
         throw Exception("IR lowering failed at: ${file.name}", e)
     }
 }
+
+fun IrExpression.unwrapLambda(): IrFunctionSymbol? = when {
+    this is IrBlock && origin.isLambdaBlockOrigin ->
+        (statements.lastOrNull() as? IrFunctionReference)?.symbol
+
+    this is IrFunctionExpression ->
+        function.symbol
+
+    else ->
+        null
+}
+
+private val IrStatementOrigin?.isLambdaBlockOrigin: Boolean
+    get() = isLambda || this == IrStatementOrigin.ADAPTED_FUNCTION_REFERENCE ||
+            this == IrStatementOrigin.SUSPEND_CONVERSION
