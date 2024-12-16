@@ -6,7 +6,10 @@ import org.gradle.api.Project
 import org.jetbrains.kotlin.gradle.plugin.KotlinCompilation
 import org.jetbrains.kotlin.gradle.utils.NativeCompilerDownloader
 import org.jetbrains.kotlin.konan.target.HostManager
+import org.jetbrains.kotlin.konan.target.KonanTarget
+import org.jetbrains.kotlin.konan.util.ArchiveType
 import org.jetbrains.kotlin.konan.util.DependencyDirectories
+import org.jetbrains.kotlin.konan.util.DependencyProcessor
 
 val Project.konanDataDir: String?
     get() = findProperty("konan.data.dir")?.toString()
@@ -30,11 +33,42 @@ class KonanConfig(project: Project) {
     val dependenciesRoot = DependencyDirectories.getDependenciesRoot(konanDataDir)
 
     val llvmHome: File by lazy {
-        File(
-            dependenciesRoot,
-            konanProperties.getProperty("llvm.${HostManager.host.name}.dev")
-                ?: throw Exception("Cannot find llvm home for current target: ${HostManager.host}")
-        )
+        val llvmHomeName = konanProperties.getProperty("llvm.${HostManager.host.name}.dev")
+            ?: throw Exception("Cannot find llvm home for current target: ${HostManager.host}")
+        val file = File(dependenciesRoot, llvmHomeName)
+        
+        if (!file.exists()) {
+            DependencyProcessor(
+                dependenciesRoot = dependenciesRoot,
+                properties = konanProperties,
+                dependencies = listOf(llvmHomeName),
+                archiveType = defaultArchiveTypeByHost(HostManager.host),
+                customProgressCallback = { url, currentBytes, totalBytes ->
+                    print("\nDownloading dependency: $url (${currentBytes.humanReadable}/${totalBytes.humanReadable}). ")
+                }
+            ).run()
+        }
+        
+        file
+    }
+
+    private val Long.humanReadable: String
+        get() {
+            if (this < 0) {
+                return "-"
+            }
+            if (this < 1024) {
+                return "$this bytes"
+            }
+            val exp = (Math.log(this.toDouble()) / Math.log(1024.0)).toInt()
+            val prefix = "kMGTPE"[exp-1]
+            return "%.1f %siB".format(this / Math.pow(1024.0, exp.toDouble()), prefix)
+        }
+
+    private fun defaultArchiveTypeByHost(host: KonanTarget): ArchiveType = when (host) {
+        KonanTarget.LINUX_X64, KonanTarget.MACOS_X64, KonanTarget.MACOS_ARM64 -> ArchiveType.TAR_GZ
+        KonanTarget.MINGW_X64 -> ArchiveType.ZIP
+        else -> error("$host can't be a host platform!")
     }
 }
 

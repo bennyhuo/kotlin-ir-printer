@@ -35,8 +35,9 @@ abstract class LlvmDisTask : DefaultTask() {
     @TaskAction
     fun run() {
         val inputDir = File(konanTempDir.get())
+        val llvmDisPathValue = llvmDisPath.get().value
         inputDir.list()?.filter { it.endsWith(".bc") }?.forEach {
-            val result = executeCommand("${llvmDisPath.get().value} $it", inputDir, logger)
+            val result = executeCommand("$llvmDisPathValue $it", inputDir, logger)
             if(!result.isOk) {
                 throw GradleException("Failed to disassemble $it.")
             }
