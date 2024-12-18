@@ -1021,6 +1021,7 @@ internal class JcIrSourcePrinter(
 
     private fun intAsBinaryString(value: Int): String {
         if (value == 0) return "0"
+        if (value == Int.MIN_VALUE) return "0b11111111111111111111111111111111"
         var current = abs(value)
         var result = ""
         while (current != 0 || result.length % 4 != 0) {
