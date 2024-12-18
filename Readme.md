@@ -85,7 +85,35 @@ kotlin
         └── out.ll
 ```
 
-'out.ll' is the disassembled LLVM IR, you can view it with any text editor you like.
+'out.ll' is the disassembled LLVM IR, you can view it with any text editor you like:
+
+```llvm
+define internal void @"kfun:#Greeting(kotlin.String;androidx.compose.ui.Modifier?;androidx.compose.runtime.Composer?;kotlin.Int;kotlin.Int){}"(%struct.ObjHeader* %0, %struct.ObjHeader* %1, %struct.ObjHeader* %2, i32 %3, i32 %4) #10 !dbg !567387 {
+prologue:
+  %"p-$changed" = alloca i32, align 4
+  call void @llvm.dbg.declare(metadata i32* %"p-$changed", metadata !567388, metadata !DIExpression()), !dbg !567389
+  %"p-$default" = alloca i32, align 4
+  call void @llvm.dbg.declare(metadata i32* %"p-$default", metadata !567390, metadata !DIExpression()), !dbg !567389
+  %"$dirty" = alloca i32, align 4
+  call void @llvm.dbg.declare(metadata i32* %"$dirty", metadata !567391, metadata !DIExpression()), !dbg !567389
+
+...
+
+call_success54:                                   ; preds = %when_next52
+  call void @"kfun:androidx.compose.runtime.ScopeUpdateScope#updateScope(kotlin.Function2<androidx.compose.runtime.Composer,kotlin.Int,kotlin.Unit>){}-trampoline"(%struct.ObjHeader* %114, %struct.ObjHeader* %119), !dbg !567389
+  br label %call_success55, !dbg !567389
+
+call_success55:                                   ; preds = %call_success54
+  br label %when_exit53, !dbg !567389
+
+when_exit53:                                      ; preds = %call_success55, %when_case51
+  br label %epilogue, !dbg !567401
+
+epilogue:                                         ; preds = %when_exit53
+  call void @LeaveFrame(%struct.ObjHeader** %7, i32 3, i32 28) #13, !dbg !567401
+  ret void, !dbg !567401
+}
+```
 
 ## Try it
 
