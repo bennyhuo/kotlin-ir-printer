@@ -41,15 +41,22 @@ class IrPrinterGradlePlugin : KotlinCompilerPluginSupportPlugin {
             target is KotlinNativeTarget
         ) {
             val konanTempDir = kotlinCompilation.getOrConfigKonanTempDir()
-            val konanConfig = KonanConfig(project)
-            
-            // force llvm variant to dev to obtain the llvm-dis binary file.
-            kotlinCompilation.compileTaskProvider.get().compilerOptions.freeCompilerArgs.add("-Xllvm-variant=dev")
-            println("LLVM variant is set to dev for disassembling LLVM bitcode.")
-            
-            // lazily resolve this path after Kotlin Native compiler setup.
-            val llvmDisPathLazy = lazy {
-                File(konanConfig.llvmHome, "bin/llvm-dis").absolutePath
+
+            val userConfiguredLlvmDisPath = extension.llvmDisPath
+            val llvmDisPathLazy = if (userConfiguredLlvmDisPath.isNullOrBlank()) {
+                val konanConfig = KonanConfig(project)
+
+                // force llvm variant to dev to obtain the llvm-dis binary file.
+                kotlinCompilation.compileTaskProvider.get().compilerOptions.freeCompilerArgs.add("-Xllvm-variant=dev")
+                println("LLVM variant is set to dev for disassembling LLVM bitcode.")
+
+                // lazily resolve this path after Kotlin Native compiler setup.
+                lazy {
+                    File(konanConfig.llvmHome, "bin/llvm-dis").absolutePath
+                }
+            } else {
+                println("Use user configured llvm-dis in '$userConfiguredLlvmDisPath' for disassembling LLVM bitcode.")
+                lazy { File(userConfiguredLlvmDisPath).absolutePath }
             }
 
             target.binaries.forEach { binary ->

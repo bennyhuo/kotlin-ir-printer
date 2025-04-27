@@ -24,6 +24,7 @@ open class PrinterExtension {
 
     var isEnabled: Boolean = true
     var isLlvmIrEnabled: Boolean = true
+    var llvmDisPath: String? = null
     var indent: String = "  "
     var outputDir: String? = null
     var outputType: OutputType = OutputType.RAW_IR
