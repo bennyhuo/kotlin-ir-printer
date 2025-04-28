@@ -72,14 +72,15 @@ class KonanConfig(project: Project) {
     }
 }
 
-fun KotlinCompilation<*>.getOrConfigKonanTempDir(): String {
-    val optionKey = "-Xtemporary-files-dir"
+private const val OPTION_KEY = "-Xtemporary-files-dir"
+
+fun KotlinCompilation<*>.getOrConfigKonanTempDir(extension: PrinterExtension): String {
     val userDefinedKonanDir = compileTaskProvider.get().compilerOptions.freeCompilerArgs.orNull?.find {
-        it.startsWith("$optionKey=")
+        it.startsWith("$OPTION_KEY=")
     }?.split("=", limit = 2)?.last()
     if (userDefinedKonanDir == null) {
-        val defaultKonanDir = project.output(target, "llvm-bc")
-        compileTaskProvider.get().compilerOptions.freeCompilerArgs.add("$optionKey=$defaultKonanDir")
+        val defaultKonanDir = project.output(extension, target, "llvm-bc")
+        compileTaskProvider.get().compilerOptions.freeCompilerArgs.add("$OPTION_KEY=$defaultKonanDir")
         println("Konan temporary dir is set to: $defaultKonanDir by default.")
         return defaultKonanDir
     }

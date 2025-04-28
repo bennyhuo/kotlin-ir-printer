@@ -40,7 +40,7 @@ class IrPrinterGradlePlugin : KotlinCompilerPluginSupportPlugin {
             kotlinCompilation.name == KotlinCompilation.MAIN_COMPILATION_NAME &&
             target is KotlinNativeTarget
         ) {
-            val konanTempDir = kotlinCompilation.getOrConfigKonanTempDir()
+            val konanTempDir = kotlinCompilation.getOrConfigKonanTempDir(extension)
 
             val userConfiguredLlvmDisPath = extension.llvmDisPath
             val llvmDisPathLazy = if (userConfiguredLlvmDisPath.isNullOrBlank()) {
@@ -65,17 +65,22 @@ class IrPrinterGradlePlugin : KotlinCompilerPluginSupportPlugin {
                     it.dependsOn(binary.linkTaskName)
                     it.llvmDisPath.set(llvmDisPathLazy)
                     it.konanTempDir.set(konanTempDir)
-                    it.outputPath.set(project.output(target, "llvm-ir"))
+                    it.outputPath.set(project.output(extension, target, "llvm-ir"))
                 }
             }
         }
 
         val options = ArrayList<SubpluginOption>()
+        options += SubpluginOption("isOptimizedIrEnabled", extension.isOptimizedKotlinIrEnabled.toString())
         options += SubpluginOption("indent", extension.indent)
         options += SubpluginOption("outputType", extension.outputType.ordinal.toString())
         options += SubpluginOption(
             "outputDir",
-            extension.outputDir?.takeIf { it.isNotBlank() } ?: project.output(target, "ir")
+            project.output(extension, target, "ir")
+        )
+        options += SubpluginOption(
+            "outputDirOpt",
+            project.output(extension, target, "ir-opt")
         )
         return project.provider { options }
     }

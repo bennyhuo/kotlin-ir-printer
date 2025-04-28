@@ -23,6 +23,7 @@ enum class OutputType {
 open class PrinterExtension {
 
     var isEnabled: Boolean = true
+    var isOptimizedKotlinIrEnabled: Boolean = false
     var isLlvmIrEnabled: Boolean = true
     var llvmDisPath: String? = null
     var indent: String = "  "

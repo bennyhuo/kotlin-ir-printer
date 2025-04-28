@@ -7,8 +7,13 @@ import org.jetbrains.kotlin.gradle.plugin.KotlinTarget
 /**
  * Created by benny.
  */
-fun Project.output(target: KotlinTarget, path: String): String {
-    return layout.buildDirectory.file(
-        listOf("outputs", "kotlin", path, target.targetName).joinToString(File.separator)
-    ).get().asFile.path
+fun Project.output(extension: PrinterExtension, target: KotlinTarget, path: String): String {
+    val userConfiguredOutputDir = extension.outputDir
+    return if (userConfiguredOutputDir.isNullOrBlank()) {
+        layout.buildDirectory.file(
+            listOf("outputs", "kotlin", path, target.targetName).joinToString(File.separator)
+        ).get().asFile.path
+    } else {
+        File(userConfiguredOutputDir, listOf(path, target.targetName).joinToString(File.separator)).path
+    }
 }
