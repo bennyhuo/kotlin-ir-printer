@@ -3,6 +3,14 @@ package com.bennyhuo.kotlin.ir.printer.compiler.options
 object Options {
 
     @JvmField
+    val isOptimizedIrEnabled = Option(
+        "isOptimizedIrEnabled",
+        false,
+        "Whether to print IR after IR lowering.",
+        "",
+    )
+
+    @JvmField
     val indent = Option(
         "indent",
         "  ",
@@ -22,9 +30,18 @@ object Options {
     val outputDirPath = Option(
         "outputDir",
         "",
-        "The root dir of the output source files.",
+        "The root dir of the IR files.",
         "",
     )
+
+    @JvmField
+    val outputDirOptPath = Option(
+        "outputDirOpt",
+        "",
+        "The root dir of the optimized IR files.",
+        "",
+    )
+
 
     val all = Options::class.java.declaredFields.filter {
         it.type == Option::class.java

@@ -10,6 +10,7 @@ plugins {
 dependencies {
     compileOnly("org.jetbrains.kotlin:kotlin-stdlib")
     compileOnly("org.jetbrains.kotlin:kotlin-compiler-embeddable")
+    compileOnly("org.jetbrains.kotlin:kotlin-native-compiler-embeddable")
 
     kapt("com.google.auto.service:auto-service:1.0.1")
     compileOnly("com.google.auto.service:auto-service-annotations:1.0.1")

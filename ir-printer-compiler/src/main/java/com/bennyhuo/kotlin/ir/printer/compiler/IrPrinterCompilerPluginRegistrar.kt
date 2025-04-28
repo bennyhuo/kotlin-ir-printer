@@ -24,5 +24,8 @@ class IrPrinterCompilerPluginRegistrar : CompilerPluginRegistrar() {
 
         Option.initialize(configuration)
         IrGenerationExtension.registerExtension(extension)
+        if (Options.isOptimizedIrEnabled()) {
+            registerPrinterForOptimizedIr()
+        }
     }
 }
