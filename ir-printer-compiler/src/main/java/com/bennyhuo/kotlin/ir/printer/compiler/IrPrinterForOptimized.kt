@@ -5,32 +5,66 @@ package com.bennyhuo.kotlin.ir.printer.compiler
 import com.bennyhuo.kotlin.ir.printer.compiler.options.Options
 import org.jetbrains.kotlin.backend.common.phaser.Action
 import org.jetbrains.kotlin.backend.common.phaser.ActionState
+import org.jetbrains.kotlin.backend.common.phaser.BeforeOrAfter
+import org.jetbrains.kotlin.backend.common.phaser.NamedCompilerPhase
 import org.jetbrains.kotlin.backend.common.phaser.SimpleNamedCompilerPhase
+import org.jetbrains.kotlin.backend.jvm.JvmBackendContext
+import org.jetbrains.kotlin.backend.jvm.jvmLoweringPhases
 import org.jetbrains.kotlin.backend.konan.NativeGenerationState
 import org.jetbrains.kotlin.backend.konan.driver.phases.CodegenInput
 import org.jetbrains.kotlin.backend.konan.driver.phases.CodegenPhase
+import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 
 /**
  * Created by benny.
  */
-private fun getIrPrinterBeforeCodegen(outputDirOptPath: String): Action<CodegenInput, NativeGenerationState> =
+fun registerPrinterForOptimizedIr() {
+    registerPrinterForJvmTargets()
+    registerPrinterForNativeTargets()
+}
+
+private fun getIrPrinterForJvmTargets(outputDirOptPath: String): Action<IrModuleFragment, JvmBackendContext> =
+    fun(state: ActionState, data: IrModuleFragment, _: JvmBackendContext) {
+        if (state.beforeOrAfter == BeforeOrAfter.AFTER) {
+            logger.warn("Print optimized IR to ${outputDirOptPath}, module: ${data.name}.")
+            printIr(data, outputDirOptPath)
+        }
+    }
+
+private fun registerPrinterForJvmTargets() {
+    try {
+        val actionsField = NamedCompilerPhase::class.java.getDeclaredField("actions")
+        actionsField.isAccessible = true
+        @Suppress("UNCHECKED_CAST") 
+        val actions = actionsField.get(jvmLoweringPhases) as MutableSet<Action<IrModuleFragment, JvmBackendContext>>
+        actionsField.set(jvmLoweringPhases, actions + getIrPrinterForJvmTargets(Options.outputDirOptPath()))
+
+        logger.warn("Register the printer of optimized IR for JVM targets.")
+    } catch (_: NoClassDefFoundError) {
+        logger.info("The printer of optimized IR for JVM targets is ignored.")
+    } catch (t: Throwable) {
+        logger.warn("Failed to register the printer of optimized IR for JVM targets: $t")
+    }
+}
+
+private fun getIrPrinterForNativeTargets(outputDirOptPath: String): Action<CodegenInput, NativeGenerationState> =
     fun(_: ActionState, data: CodegenInput, _: NativeGenerationState) {
         logger.warn("Print optimized IR to ${outputDirOptPath}, module: ${data.irModule.name}.")
         printIr(data.irModule, outputDirOptPath)
     }
 
-@Suppress("UNCHECKED_CAST")
-fun registerPrinterForOptimizedIr() {
+private fun registerPrinterForNativeTargets() {
     try {
         val preactionsField = SimpleNamedCompilerPhase::class.java.getDeclaredField("preactions")
         preactionsField.isAccessible = true
-        val preactions =
-            preactionsField.get(CodegenPhase) as MutableSet<Action<CodegenInput, NativeGenerationState>>
-        preactions.add(getIrPrinterBeforeCodegen(Options.outputDirOptPath()))
+        @Suppress("UNCHECKED_CAST") 
+        val preactions = preactionsField.get(CodegenPhase) as MutableSet<Action<CodegenInput, NativeGenerationState>>
+        preactions.add(getIrPrinterForNativeTargets(Options.outputDirOptPath()))
 
-        logger.warn("Optimized IR is setup.")
-    } catch (e: Exception) {
-        logger.warn("Optimized IR is not supported: $e")
-        e.printStackTrace()
+        logger.warn("Register the printer of optimized IR for native targets.")
+    } catch (_: NoClassDefFoundError) {
+        logger.info("The printer of optimized IR for native targets is ignored.")
+    } catch (t: Throwable) {
+        logger.warn("Failed to register the printer of optimized IR for native targets: $t")
     }
 }
