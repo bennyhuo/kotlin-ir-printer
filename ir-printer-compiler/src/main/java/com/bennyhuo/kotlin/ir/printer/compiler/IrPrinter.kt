@@ -7,6 +7,7 @@ import com.bennyhuo.kotlin.ir.printer.compiler.output.dumpSrc
 import java.io.File
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 import org.jetbrains.kotlin.ir.declarations.name
+import org.jetbrains.kotlin.ir.declarations.path
 import org.jetbrains.kotlin.ir.util.dump
 
 /**
@@ -22,24 +23,41 @@ internal fun printIr(moduleFragment: IrModuleFragment, outputDirPath: String) {
     outputDir.deleteRecursively()
 
     val indent = Options.indent().takeIf { it.isNotEmpty() } ?: "  "
+    val outputType = Options.outputType()
 
     moduleFragment.files.forEach { irFile ->
         outputDir.resolve(irFile.packageFqName.asString().replace('.', File.separatorChar)).run {
             mkdirs()
-            val source = when (Options.outputType()) {
-                OUTPUT_TYPE_KOTLIN_LIKE_JC -> irFile.dumpSrc(indent)
-                OUTPUT_TYPE_KOTLIN_LIKE -> irFile.dumpKotlinLike(
-                    KotlinLikeDumpOptions(
-                        printFileName = false,
-                        printFilePath = false,
-                        indent = indent
+            val source = try {
+                when (outputType) {
+                    OUTPUT_TYPE_KOTLIN_LIKE_JC -> irFile.dumpSrc(indent)
+                    OUTPUT_TYPE_KOTLIN_LIKE -> irFile.dumpKotlinLike(
+                        KotlinLikeDumpOptions(
+                            printFileName = false,
+                            printFilePath = false,
+                            indent = indent
+                        )
                     )
-                )
 
-                else -> irFile.dump()
+                    else -> irFile.dump()
+                }
+            } catch (e: Exception) {
+                buildString {
+                    appendLine("Failed to print IR of ${irFile.path} as type ${getOutputTypeName(outputType)}.")
+                    appendLine()
+                    append(e.stackTraceToString())
+                }
             }
 
             resolve(irFile.name).writeText(source)
         }
+    }
+}
+
+private fun getOutputTypeName(outputType: Int): String {
+    return when(outputType) {
+        OUTPUT_TYPE_KOTLIN_LIKE_JC -> "OUTPUT_TYPE_KOTLIN_LIKE_JC"
+        OUTPUT_TYPE_KOTLIN_LIKE -> "OUTPUT_TYPE_KOTLIN_LIKE"
+        else -> "OUTPUT_TYPE_RAW_IR"
     }
 }
