@@ -1,5 +1,3 @@
-rootProject.name = "KmpComposeSample"
-
 pluginManagement {
     repositories {
         google {
@@ -27,6 +25,10 @@ dependencyResolutionManagement {
     }
 }
 
-include(":composeApp")
+include(
+    ":composeMultiplatformApp",
+    ":composeAndroidApp",
+    ":roomApp",
+)
 
-includeBuild("../../")
+includeBuild("../")
