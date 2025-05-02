@@ -19,8 +19,10 @@ const val OUTPUT_TYPE_KOTLIN_LIKE_JC = 2
 
 internal fun printIr(moduleFragment: IrModuleFragment, outputDirPath: String) {
     if (outputDirPath.isBlank()) return
-    val outputDir = File(outputDirPath)
+    val moduleName = moduleFragment.name.asStringStripSpecialMarkers()
+    val outputDir = File(outputDirPath, moduleName)
     outputDir.deleteRecursively()
+    logger.warn("Print IR to ${outputDir.path}, module: $moduleName.")
 
     val indent = Options.indent().takeIf { it.isNotEmpty() } ?: "  "
     val outputType = Options.outputType()
