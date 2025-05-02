@@ -10,9 +10,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.ui.tooling.preview.Preview
+import sample.composemultiplatformapp.generated.resources.Res
+import sample.composemultiplatformapp.generated.resources.compose_multiplatform
 
-import kmpcomposesample.composeapp.generated.resources.Res
-import kmpcomposesample.composeapp.generated.resources.compose_multiplatform
 import kotlin.jvm.JvmInline
 
 @Composable

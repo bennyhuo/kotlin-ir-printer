@@ -2,13 +2,14 @@ import com.bennyhuo.kotlin.ir.printer.gradle.OutputType
 
 plugins {
     alias(libs.plugins.androidApplication)
-    alias(libs.plugins.jetbrainsKotlinAndroid)
+    alias(libs.plugins.kotlinAndroid)
     alias(libs.plugins.ksp)
     id("com.bennyhuo.kotlin.ir.printer")
 }
 
 irPrinter {
     isEnabled = true
+    isOptimizedKotlinIrEnabled = true
     indent = "    "
     outputType = OutputType.KOTLIN_LIKE_JETPACK_COMPOSE_STYLE
 }

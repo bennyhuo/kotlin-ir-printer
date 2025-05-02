@@ -1,3 +1,4 @@
+import com.bennyhuo.kotlin.ir.printer.gradle.OutputType
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
@@ -6,8 +7,15 @@ plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.jetbrainsCompose)
-    alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.composeCompiler)
     id("com.bennyhuo.kotlin.ir.printer")
+}
+
+irPrinter {
+    isEnabled = true
+    isOptimizedKotlinIrEnabled = true
+    indent = "    "
+    outputType = OutputType.KOTLIN_LIKE_JETPACK_COMPOSE_STYLE
 }
 
 kotlin {
@@ -31,7 +39,6 @@ kotlin {
     }
     
     sourceSets {
-        
         androidMain.dependencies {
             implementation(compose.preview)
             implementation(libs.androidx.activity.compose)
