@@ -26,7 +26,6 @@ fun registerPrinterForOptimizedIr() {
 private fun getIrPrinterForJvmTargets(outputDirOptPath: String): Action<IrModuleFragment, JvmBackendContext> =
     fun(state: ActionState, data: IrModuleFragment, _: JvmBackendContext) {
         if (state.beforeOrAfter == BeforeOrAfter.AFTER) {
-            logger.warn("Print optimized IR to ${outputDirOptPath}, module: ${data.name}.")
             printIr(data, outputDirOptPath)
         }
     }
@@ -49,7 +48,6 @@ private fun registerPrinterForJvmTargets() {
 
 private fun getIrPrinterForNativeTargets(outputDirOptPath: String): Action<CodegenInput, NativeGenerationState> =
     fun(_: ActionState, data: CodegenInput, _: NativeGenerationState) {
-        logger.warn("Print optimized IR to ${outputDirOptPath}, module: ${data.irModule.name}.")
         printIr(data.irModule, outputDirOptPath)
     }
 
