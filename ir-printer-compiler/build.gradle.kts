@@ -1,3 +1,4 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
@@ -22,11 +23,14 @@ dependencies {
 
 kotlin {
     jvmToolchain(8)
+    compilerOptions {
+        freeCompilerArgs.addAll(
+            "-opt-in=kotlin.RequiresOptIn",
+            "-Xmulti-dollar-interpolation"
+        )
+        jvmTarget.set(JvmTarget.JVM_1_8)
+    }
 }
-
-val compileKotlin: KotlinCompile by tasks
-compileKotlin.kotlinOptions.freeCompilerArgs += listOf("-opt-in=kotlin.RequiresOptIn")
-compileKotlin.kotlinOptions.jvmTarget = "1.8"
 
 buildConfig {
     packageName("$group.ir.printer")

@@ -1,9 +1,9 @@
 package com.bennyhuo.kotlin.ir.printer.compiler
 
 import com.bennyhuo.kotlin.ir.printer.compiler.options.Options
-import com.bennyhuo.kotlin.ir.printer.compiler.output.KotlinLikeDumpOptions
-import com.bennyhuo.kotlin.ir.printer.compiler.output.dumpKotlinLike
-import com.bennyhuo.kotlin.ir.printer.compiler.output.dumpSrc
+import com.bennyhuo.kotlin.ir.printer.compiler.output.builtin.KotlinLikeDumpOptions
+import com.bennyhuo.kotlin.ir.printer.compiler.output.builtin.dumpKotlinLike
+import com.bennyhuo.kotlin.ir.printer.compiler.output.compose.dumpSrc
 import java.io.File
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 import org.jetbrains.kotlin.ir.declarations.name
