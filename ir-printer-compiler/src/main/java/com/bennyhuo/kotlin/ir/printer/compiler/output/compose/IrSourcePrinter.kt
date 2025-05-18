@@ -228,7 +228,7 @@ class IrSourcePrinterVisitor(
     private var isInNotCall = false
 
     private fun IrFunctionAccessExpression.printReceiver() {
-        arguments[symbol.owner.parameters.first { it.isReceiver }.indexInParameters]?.print()
+        symbol.owner.parameters.firstOrNull { it.isReceiver }?.indexInParameters?.let { arguments[it] }?.print()
     }
 
     private fun IrFunctionAccessExpression.printFirstParameter() {
@@ -857,8 +857,14 @@ class IrSourcePrinterVisitor(
                 print("--")
             }
             IrStatementOrigin.LAMBDA -> {
-                val function = expression.statements[0] as IrFunction
-                function.printAsLambda()
+                when(val statement = expression.statements[0]) {
+                    is IrFunction -> {
+                        statement.printAsLambda()
+                    }
+                    else -> {
+                        expression.statements.printJoin("\n")
+                    }
+                }
             }
             IrStatementOrigin.OBJECT_LITERAL -> {
                 val classImpl = expression.statements[0] as IrClass
