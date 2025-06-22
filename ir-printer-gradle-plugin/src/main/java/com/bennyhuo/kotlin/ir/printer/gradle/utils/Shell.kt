@@ -1,4 +1,4 @@
-package com.bennyhuo.kotlin.ir.printer.gradle
+package com.bennyhuo.kotlin.ir.printer.gradle.utils
 
 import java.io.File
 import java.util.concurrent.TimeUnit

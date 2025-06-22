@@ -1,13 +1,19 @@
-package com.bennyhuo.kotlin.ir.printer.gradle
+package com.bennyhuo.kotlin.ir.printer.gradle.utils
 
+import com.bennyhuo.kotlin.ir.printer.gradle.PrinterExtension
 import java.io.File
 import org.gradle.api.Project
 import org.jetbrains.kotlin.gradle.plugin.KotlinTarget
 import org.jetbrains.kotlin.gradle.plugin.mpp.NativeBinary
+import org.jetbrains.kotlin.gradle.targets.js.ir.JsIrBinary
 
 /**
  * Created by benny.
  */
+fun Project.output(extension: PrinterExtension, binary: JsIrBinary, path: String): String {
+    return output(extension, path, binary.mode.name.lowercase(), binary.target.targetName)
+}
+
 fun Project.output(extension: PrinterExtension, binary: NativeBinary, path: String): String {
     return output(extension, path, binary.buildType.getName(), binary.target.targetName)
 }

@@ -1,15 +1,23 @@
 package com.bennyhuo.kotlin.ir.printer.gradle
 
 import com.bennyhuo.kotlin.ir.printer.BuildConfig
+import com.bennyhuo.kotlin.ir.printer.gradle.tasks.LlvmDisTask
+import com.bennyhuo.kotlin.ir.printer.gradle.tasks.WasmDisTask
+import com.bennyhuo.kotlin.ir.printer.gradle.utils.output
 import java.io.File
 import org.gradle.api.Project
 import org.gradle.api.provider.Provider
 import org.gradle.configurationcache.extensions.capitalized
 import org.jetbrains.kotlin.gradle.plugin.KotlinCompilation
 import org.jetbrains.kotlin.gradle.plugin.KotlinCompilerPluginSupportPlugin
+import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
+import org.jetbrains.kotlin.gradle.plugin.KotlinTarget
 import org.jetbrains.kotlin.gradle.plugin.SubpluginArtifact
 import org.jetbrains.kotlin.gradle.plugin.SubpluginOption
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
+import org.jetbrains.kotlin.gradle.targets.js.ir.KotlinJsIrTarget
+import org.jetbrains.kotlin.gradle.targets.js.binaryen.BinaryenRootExtension
+import org.jetbrains.kotlin.gradle.targets.js.binaryen.BinaryenSetupTask
 
 class IrPrinterGradlePlugin : KotlinCompilerPluginSupportPlugin {
     override fun apply(target: Project) {
@@ -35,6 +43,19 @@ class IrPrinterGradlePlugin : KotlinCompilerPluginSupportPlugin {
         val target = kotlinCompilation.target
         val extension = project.extensions.getByType(PrinterExtension::class.java)
 
+        registerLlvmDisTask(project, kotlinCompilation, target, extension)
+        registerWasmDisTask(project, kotlinCompilation, target, extension)
+
+        val options = createOptions(extension, project, target)
+        return project.provider { options }
+    }
+
+    private fun registerLlvmDisTask(
+        project: Project,
+        kotlinCompilation: KotlinCompilation<*>,
+        target: KotlinTarget,
+        extension: PrinterExtension
+    ) {
         if (
             extension.isLlvmIrEnabled &&
             kotlinCompilation.name == KotlinCompilation.MAIN_COMPILATION_NAME &&
@@ -69,9 +90,50 @@ class IrPrinterGradlePlugin : KotlinCompilerPluginSupportPlugin {
                 }
             }
         }
+    }
 
+    private fun registerWasmDisTask(
+        project: Project,
+        kotlinCompilation: KotlinCompilation<*>,
+        target: KotlinTarget,
+        extension: PrinterExtension
+    ) {
+        if (
+            extension.isWasmWatEnabled &&
+            kotlinCompilation.name == KotlinCompilation.MAIN_COMPILATION_NAME &&
+            target is KotlinJsIrTarget &&
+            target.platformType == KotlinPlatformType.wasm
+        ) {
+            val binaryenExtension = project.rootProject.extensions.getByName(BinaryenRootExtension.EXTENSION_NAME) as BinaryenRootExtension
+            val binaryenBinDir = binaryenExtension.requireConfigured().executablePath.parentFile.absolutePath
+            val wasmDisPathLazy = lazy {
+                File(binaryenBinDir, "wasm-dis").absolutePath
+            }
+
+            val binaryenSetupTask = project.tasks.withType(BinaryenSetupTask::class.java)
+            target.binaries.forEach { binary ->
+                val taskName = "generate${binary.name.capitalized()}${target.targetName.capitalized()}Wat"
+                project.tasks.register(taskName, WasmDisTask::class.java) {
+                    it.dependsOn(binaryenSetupTask)
+                    it.dependsOn(binary.linkTaskName)
+                    it.wasmDisPath.set(wasmDisPathLazy)
+                    it.inputPath.value(binary.linkTask.flatMap { it.destinationDirectory.asFile.map { it.absolutePath } })
+                    it.outputPath.set(project.output(extension, binary, "wasm"))
+                }
+            }
+        }
+    }
+
+    private fun createOptions(
+        extension: PrinterExtension,
+        project: Project,
+        target: KotlinTarget
+    ): ArrayList<SubpluginOption> {
         val options = ArrayList<SubpluginOption>()
-        options += SubpluginOption("isOptimizedIrEnabled", extension.isOptimizedKotlinIrEnabled.toString())
+        options += SubpluginOption(
+            "isOptimizedIrEnabled",
+            extension.isOptimizedKotlinIrEnabled.toString()
+        )
         options += SubpluginOption("indent", extension.indent)
         options += SubpluginOption("outputType", extension.outputType.ordinal.toString())
         options += SubpluginOption(
@@ -82,6 +144,6 @@ class IrPrinterGradlePlugin : KotlinCompilerPluginSupportPlugin {
             "outputDirOpt",
             project.output(extension, target, "ir-opt")
         )
-        return project.provider { options }
+        return options
     }
 }

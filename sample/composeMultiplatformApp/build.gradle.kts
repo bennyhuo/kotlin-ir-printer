@@ -1,6 +1,4 @@
 import com.bennyhuo.kotlin.ir.printer.gradle.OutputType
-import org.jetbrains.compose.desktop.application.dsl.TargetFormat
-import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -36,6 +34,11 @@ kotlin {
             baseName = "ComposeApp"
             isStatic = true
         }
+    }
+
+    wasmJs {
+        nodejs()
+        binaries.executable()
     }
     
     sourceSets {
