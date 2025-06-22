@@ -1,5 +1,6 @@
-package com.bennyhuo.kotlin.ir.printer.gradle
+package com.bennyhuo.kotlin.ir.printer.gradle.tasks
 
+import com.bennyhuo.kotlin.ir.printer.gradle.utils.executeCommand
 import java.io.File
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
@@ -19,7 +20,7 @@ import org.gradle.api.tasks.TaskAction
 abstract class LlvmDisTask : DefaultTask() {
 
     init {
-        group = "build"
+        group = IR_PRINTER_TASK_GROUP
     }
 
     @get:Input
