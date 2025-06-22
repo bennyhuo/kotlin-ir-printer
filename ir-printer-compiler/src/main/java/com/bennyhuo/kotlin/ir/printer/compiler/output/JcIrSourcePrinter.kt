@@ -830,8 +830,14 @@ internal class JcIrSourcePrinter(
                 print("--")
             }
             IrStatementOrigin.LAMBDA, IrStatementOrigin.ADAPTED_FUNCTION_REFERENCE -> {
-                val function = expression.statements[0] as IrFunction
-                function.printAsLambda()
+                when(val statement = expression.statements[0]) {
+                    is IrFunction -> {
+                        statement.printAsLambda()
+                    }
+                    else -> {
+                        expression.statements.printJoin("\n")
+                    }
+                }
             }
             IrStatementOrigin.OBJECT_LITERAL -> {
                 val classImpl = expression.statements[0] as IrClass
