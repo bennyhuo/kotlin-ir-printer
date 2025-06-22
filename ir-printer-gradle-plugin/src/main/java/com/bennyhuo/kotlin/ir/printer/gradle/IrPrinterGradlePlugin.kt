@@ -65,7 +65,7 @@ class IrPrinterGradlePlugin : KotlinCompilerPluginSupportPlugin {
                     it.dependsOn(binary.linkTaskName)
                     it.llvmDisPath.set(llvmDisPathLazy)
                     it.konanTempDir.set(konanTempDir)
-                    it.outputPath.set(project.output(extension, target, "llvm-ir"))
+                    it.outputPath.set(project.output(extension, binary, "llvm-ir"))
                 }
             }
         }
