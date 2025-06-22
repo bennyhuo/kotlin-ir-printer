@@ -29,6 +29,7 @@ include(
     ":composeMultiplatformApp",
     ":composeAndroidApp",
     ":roomApp",
+    ":wasmWasiApp"
 )
 
 includeBuild("../")

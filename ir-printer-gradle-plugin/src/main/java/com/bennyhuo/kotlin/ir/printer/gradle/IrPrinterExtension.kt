@@ -26,6 +26,7 @@ open class PrinterExtension {
     var isOptimizedKotlinIrEnabled: Boolean = false
     var isLlvmIrEnabled: Boolean = true
     var llvmDisPath: String? = null
+    var isWasmWatEnabled: Boolean = true
     var indent: String = "  "
     var outputDir: String? = null
     var outputType: OutputType = OutputType.RAW_IR

@@ -1,5 +1,6 @@
 package com.bennyhuo.kotlin.ir.printer.gradle
 
+import com.bennyhuo.kotlin.ir.printer.gradle.utils.output
 import java.io.File
 import java.util.Properties
 import org.gradle.api.Project
