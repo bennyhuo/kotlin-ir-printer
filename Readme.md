@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) [![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.bennyhuo.kotlin/ir-printer-gradle-plugin/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.bennyhuo.kotlin/ir-printer-gradle-plugin)
 
-Print transformed Kotlin IR into sources. Raw IR and two Kotlin like source code styles are supported. LLVM bitcode will also be disassembled on Kotlin Native targets.
+Print transformed Kotlin IR into sources. Raw IR and two Kotlin like source code styles are supported. LLVM bitcode will also be disassembled on Kotlin Native targets. Wat(WebAssembly Text Format) is also supported on Kotlin WASM targets. 
 
 ## Introduction
 
@@ -74,15 +74,17 @@ You can run the gradle task named like `disassemble<binary-name><target-name>Bit
 ```bash
 kotlin
 ├── ir
-│   └── macosArm64
-│       ├── Main.kt
+│   └── iosSimulatorArm64
+│       └── Main.kt
 ├── llvm-bc
-│   └── macosArm64
-│       ├── kotlin-native-sample.kexe.o
-│       └── out.bc
+│   ├── iosSimulatorArm64
+│   │   ├── ComposeApp.framework.o
+│   │   ├── libraries
+│   │   └── out.bc
 └── llvm-ir
-    └── macosArm64
-        └── out.ll
+    └── debug
+        └── iosSimulatorArm64
+            └── out.ll
 ```
 
 'out.ll' is the disassembled LLVM IR, you can view it with any text editor you like:
@@ -113,6 +115,48 @@ epilogue:                                         ; preds = %when_exit53
   call void @LeaveFrame(%struct.ObjHeader** %7, i32 3, i32 28) #13, !dbg !567401
   ret void, !dbg !567401
 }
+```
+
+### WebAssembly
+
+*.wasm files created from Kotlin WASM targets can also be disassembled into *.wat by [binaryen](https://github.com/WebAssembly/binaryen). You can run the gradle task named like `generate<binary-name><target-name>Wat` on a Kotlin WASM project. You will see the outputs locating in `$buildDir/ouptuts/kotlin` after that.
+
+```
+kotlin
+├── ir
+│   └── wasmWasi
+│       └── sample:wasmWasiApp
+│           └── EightQueens.kt
+└── wasm
+    └── development
+        └── wasmWasi
+            └── sample-wasmWasiApp.wat
+```
+
+
+The content of *.wat file is just like:
+
+```webassembly
+ (func $main
+  (local $currentIsNotFirstWasmExportCall i32)
+  (local $tmp0 (ref null $kotlin.Any))
+  (local $tmp0_2 (ref null $kotlin.time.Monotonic))
+  (local $this (ref null $kotlin.time.Monotonic))
+  (local $mark i64)
+  (local $board (ref null $kotlin.IntArray))
+  (local $tmp i32)
+  (local $tmp_7 i32)
+  (local $tmp_8 (ref null $kotlin.IntArray))
+  (local $tmp_9 i32)
+  (local $tmp0_10 i32)
+  (local $this_11 i32)
+  (local $this_12 (ref null $kotlin.Any))
+  (local $tmp0_13 i64)
+  (local $it i64)
+  (local $t (ref null $kotlin.Throwable))
+  (local.set $currentIsNotFirstWasmExportCall
+   (call $kotlin.wasm.internal.<get-isNotFirstWasmExportCall>)
+  )
 ```
 
 ## Try it
@@ -151,8 +195,10 @@ plugins {
 }
 
 irPrinter {
-    isEnabled = true // default: true
-    isLlvmIrEnabled = true // default: true, set to false to disable LLVM IR generating only.
+    isEnabled = true // Whether to generate Kotlin IR before lowerings. Default: true.
+    isOptimizedKotlinIrEnabled = true // Whether to generate Kotlin IR after lowerings. Default: true. 
+    isLlvmIrEnabled = true // Whether to enable to disassemble LLVM bitcode. Default: true.
+    isWasmWatEnabled = true // Whether to enable to generate wat for WebAssembly. Default: true.
     indent = "    " //  default: "  "
     outputDir = "/path/to/output" // default: <project>/build/outputs/kotlin/ir
     outputType = OutputType.KOTLIN_LIKE_JETPACK_COMPOSE_STYLE
