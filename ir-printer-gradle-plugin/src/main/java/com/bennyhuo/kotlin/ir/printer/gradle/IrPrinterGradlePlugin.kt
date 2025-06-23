@@ -18,6 +18,7 @@ import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 import org.jetbrains.kotlin.gradle.targets.js.ir.KotlinJsIrTarget
 import org.jetbrains.kotlin.gradle.targets.wasm.binaryen.BinaryenExtension
 import org.jetbrains.kotlin.gradle.targets.wasm.binaryen.BinaryenSetupTask
+import org.jetbrains.kotlin.gradle.targets.js.ir.ExecutableWasm
 
 class IrPrinterGradlePlugin : KotlinCompilerPluginSupportPlugin {
     override fun apply(target: Project) {
@@ -104,9 +105,10 @@ class IrPrinterGradlePlugin : KotlinCompilerPluginSupportPlugin {
             target is KotlinJsIrTarget &&
             target.platformType == KotlinPlatformType.wasm
         ) {
+            val binaryenExtension = project.extensions.getByName(BinaryenExtension.EXTENSION_NAME) as BinaryenExtension
+            val binaryenBinDir = binaryenExtension.requireConfigured().executablePath.parentFile.absolutePath
             val wasmDisPathLazy = lazy {
-                val binaryenExtension = project.extensions.getByName(BinaryenExtension.EXTENSION_NAME) as BinaryenExtension
-                File(binaryenExtension.requireConfigured().executablePath.parentFile, "wasm-dis").absolutePath
+                File(binaryenBinDir, "wasm-dis").absolutePath
             }
 
             val binaryenSetupTask = project.tasks.withType(BinaryenSetupTask::class.java)
@@ -118,6 +120,16 @@ class IrPrinterGradlePlugin : KotlinCompilerPluginSupportPlugin {
                     it.wasmDisPath.set(wasmDisPathLazy)
                     it.inputPath.value(binary.linkTask.flatMap { it.destinationDirectory.asFile.map { it.absolutePath } })
                     it.outputPath.set(project.output(extension, binary, "wasm"))
+                }
+
+                if (binary is ExecutableWasm) {
+                    val optTaskName = "generate${binary.name.capitalized()}${target.targetName.capitalized()}WatOptimize"
+                    project.tasks.register(optTaskName, WasmDisTask::class.java) {
+                        it.dependsOn(binary.optimizeTask)
+                        it.wasmDisPath.set(wasmDisPathLazy)
+                        it.inputPath.value(binary.optimizeTask.flatMap { it.outputDirectory.asFile.map { it.absolutePath } })
+                        it.outputPath.set(project.output(extension, binary, "wasmOptimized"))
+                    }
                 }
             }
         }
