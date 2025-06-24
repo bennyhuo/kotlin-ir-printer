@@ -3,6 +3,7 @@
 package com.bennyhuo.kotlin.ir.printer.compiler
 
 import com.bennyhuo.kotlin.ir.printer.compiler.options.Options
+import org.jetbrains.kotlin.backend.common.LoweringContext
 import org.jetbrains.kotlin.backend.jvm.JvmBackendContext
 import org.jetbrains.kotlin.backend.jvm.jvmLoweringPhases
 import org.jetbrains.kotlin.backend.konan.NativeGenerationState
@@ -22,6 +23,7 @@ import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 fun registerPrinterForOptimizedIr() {
     registerPrinterForJvmTargets()
     registerPrinterForNativeTargets()
+    registerPrinterForWasmTargets()
 }
 
 private class JvmIrPrinterOpt(private val outputPath: String): NamedCompilerPhase<JvmBackendContext, IrModuleFragment, IrModuleFragment>("JvmIrPrinterOpt"){
@@ -65,5 +67,29 @@ private fun registerPrinterForNativeTargets() {
         logger.info("The printer of optimized IR for native targets is ignored.")
     } catch (t: Throwable) {
         logger.warn("Failed to register the printer of optimized IR for native targets: $t")
+    }
+}
+
+private fun getIrPrinterForWasmTargets(outputDirOptPath: String): Action<IrModuleFragment, LoweringContext> =
+    fun(_: ActionState, data: IrModuleFragment, _: LoweringContext) {
+        printIr(data, outputDirOptPath)
+    }
+
+private fun registerPrinterForWasmTargets() {
+    try {
+        val preactionsField = NamedCompilerPhase::class.java.getDeclaredField("preactions")
+        preactionsField.isAccessible = true
+        @Suppress("UNCHECKED_CAST")
+        val wasmLoweringPhasesKtClass = Class.forName("org.jetbrains.kotlin.backend.wasm.WasmLoweringPhasesKt")
+        val validateIrAfterLoweringField = wasmLoweringPhasesKtClass.getDeclaredField("validateIrAfterLowering")
+        validateIrAfterLoweringField.isAccessible = true
+        val preactions = preactionsField.get(validateIrAfterLoweringField.get(null)) as MutableSet<Action<IrModuleFragment, LoweringContext>>
+        preactions.add(getIrPrinterForWasmTargets(Options.outputDirOptPath()))
+
+        logger.warn("Register the printer of optimized IR for wasm targets.")
+    } catch (_: NoClassDefFoundError) {
+        logger.info("The printer of optimized IR for wasm targets is ignored.")
+    } catch (t: Throwable) {
+        logger.warn("Failed to register the printer of optimized IR for wasm targets: $t")
     }
 }
