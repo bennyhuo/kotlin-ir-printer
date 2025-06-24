@@ -111,7 +111,7 @@ class IrPrinterGradlePlugin : KotlinCompilerPluginSupportPlugin {
                 File(binaryenBinDir, "wasm-dis").absolutePath
             }
 
-            val binaryenSetupTask = project.tasks.withType(BinaryenSetupTask::class.java)
+            val binaryenSetupTask = project.rootProject.tasks.withType(BinaryenSetupTask::class.java).single()
             target.binaries.forEach { binary ->
                 val taskName = "generate${binary.name.capitalized()}${target.targetName.capitalized()}Wat"
                 project.tasks.register(taskName, WasmDisTask::class.java) {
