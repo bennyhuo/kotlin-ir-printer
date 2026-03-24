@@ -1,5 +1,4 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     java
@@ -13,12 +12,14 @@ dependencies {
     compileOnly("org.jetbrains.kotlin:kotlin-compiler-embeddable")
     compileOnly("org.jetbrains.kotlin:kotlin-native-compiler-embeddable")
 
+    api("com.bennyhuo.kotlin:kotlin-source-printer:2.3.0-1.3.2")
+
     kapt("com.google.auto.service:auto-service:1.0.1")
     compileOnly("com.google.auto.service:auto-service-annotations:1.0.1")
 
     testImplementation(kotlin("test-junit"))
     testImplementation("org.jetbrains.kotlin:kotlin-compiler-embeddable")
-    testImplementation("com.bennyhuo.kotlin:kotlin-compile-testing-extensions:2.2.0-1.3.0")
+    testImplementation("com.bennyhuo.kotlin:kotlin-compile-testing-extensions:2.3.0-1.3.2")
 }
 
 kotlin {

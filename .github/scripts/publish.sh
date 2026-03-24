@@ -5,8 +5,11 @@ publishVersion=$(getProp VERSION_NAME)
 snapshotSuffix='SNAPSHOT'
 
 chmod +x ./gradlew
-./gradlew publishAllPublicationsToMavenCentral
+
 if [[ "$publishVersion" != *"$snapshotSuffix"* ]]; then
   echo "auto release artifacts of ${publishVersion}"
-  ./gradlew closeAndReleaseRepository
+  ./gradlew publishAndReleaseToMavenCentral
+else
+  echo "public artifacts of ${publishVersion}"
+  ./gradlew publishAllPublicationsToMavenCentral    
 fi

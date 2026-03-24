@@ -1,5 +1,6 @@
 package com.bennyhuo.kotlin.ir.printer.compiler
 
+import com.bennyhuo.kotlin.ir.printer.BuildConfig
 import com.bennyhuo.kotlin.ir.printer.compiler.options.Option
 import com.bennyhuo.kotlin.ir.printer.compiler.options.Options
 import com.google.auto.service.AutoService
@@ -16,6 +17,7 @@ lateinit var logger: Logger
 class IrPrinterCompilerPluginRegistrar : CompilerPluginRegistrar() {
 
     private val extension = IrSourcePrinterExtension()
+    override val pluginId: String = BuildConfig.KOTLIN_PLUGIN_ID
 
     override val supportsK2: Boolean = true
 

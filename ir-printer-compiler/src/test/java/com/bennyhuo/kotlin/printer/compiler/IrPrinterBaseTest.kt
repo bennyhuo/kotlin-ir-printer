@@ -23,7 +23,7 @@ abstract class IrPrinterBaseTest {
         val moduleInfo = loader.loadSourceModuleInfos().singleOrNull() ?: throw IllegalStateException("Only single module is supported by now.")
         val expectModuleInfo = loader.loadExpectModuleInfos().singleOrNull() ?: throw IllegalStateException("Only single module is supported by now.")
 
-        val module = KotlinModule(moduleInfo, true, compilerPluginRegistrars = listOf(IrPrinterCompilerPluginRegistrar()))
+        val module = KotlinModule(moduleInfo, compilerPluginRegistrars = listOf(IrPrinterCompilerPluginRegistrar()))
 
         val outputFile = module.workingDir.resolve("irPrinter")
         module.customizedOutputDirs += outputFile
