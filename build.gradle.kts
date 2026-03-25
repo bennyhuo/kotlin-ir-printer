@@ -3,6 +3,7 @@ plugins {
     id("org.jetbrains.dokka") version "1.7.10" apply false
     id("com.github.gmazzo.buildconfig") version "2.1.0" apply false
     id("com.vanniktech.maven.publish") version "0.31.0" apply false
+    id("com.gradleup.shadow") version "8.3.6" apply false
 }
 
 subprojects {

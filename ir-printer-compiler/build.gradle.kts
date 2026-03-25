@@ -1,3 +1,4 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -5,6 +6,7 @@ plugins {
     kotlin("jvm")
     kotlin("kapt")
     id("com.github.gmazzo.buildconfig")
+    id("com.gradleup.shadow")
 }
 
 dependencies {
@@ -12,7 +14,9 @@ dependencies {
     compileOnly("org.jetbrains.kotlin:kotlin-compiler-embeddable")
     compileOnly("org.jetbrains.kotlin:kotlin-native-compiler-embeddable")
 
-    api("com.bennyhuo.kotlin:kotlin-source-printer:2.3.0-1.3.2")
+    implementation("com.bennyhuo.kotlin:kotlin-source-printer:2.3.0-1.3.2") {
+        exclude("org.jetbrains.kotlin")
+    }
 
     kapt("com.google.auto.service:auto-service:1.0.1")
     compileOnly("com.google.auto.service:auto-service-annotations:1.0.1")
@@ -36,4 +40,14 @@ kotlin {
 buildConfig {
     packageName("$group.ir.printer")
     buildConfigField("String", "KOTLIN_PLUGIN_ID", "\"${project.property("KOTLIN_PLUGIN_ID")}\"")
+}
+
+tasks.named<ShadowJar>("shadowJar") {
+    // 建议进行 relocate，防止与其他插件冲突
+    relocate("com.bennyhuo.sourceprinter", "com.bennyhuo.kotlin.ir.printer.internal.sourceprinter")
+    archiveClassifier.set("") // 覆盖默认 JAR
+}
+
+tasks.jar {
+    enabled = false
 }
