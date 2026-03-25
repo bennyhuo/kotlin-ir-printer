@@ -49,5 +49,6 @@ tasks.named<ShadowJar>("shadowJar") {
 }
 
 tasks.jar {
-    enabled = false
+    actions = mutableListOf()
+    dependsOn("shadowJar")
 }
