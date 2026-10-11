@@ -40,9 +40,12 @@ class Option<T : Any>(
     }
 
     operator fun invoke(): T {
-        return value ?: (compilerConfiguration?.get()?.get(key) ?: defaultValue).also {
-            value = it
-        }
+        return value ?: compilerConfiguration?.get()?.get(key) ?: defaultValue
+    }
+
+    operator fun get(configuration: CompilerConfiguration?): T {
+        if (configuration == null) return invoke()
+        return configuration.get(key) ?: value ?: defaultValue
     }
 
     fun set(value: T) {

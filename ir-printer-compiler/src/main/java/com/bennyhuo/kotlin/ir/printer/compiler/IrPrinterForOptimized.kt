@@ -3,6 +3,7 @@
 package com.bennyhuo.kotlin.ir.printer.compiler
 
 import com.bennyhuo.kotlin.ir.printer.compiler.options.Options
+import java.util.concurrent.CopyOnWriteArraySet
 import org.jetbrains.kotlin.backend.common.LoweringContext
 import org.jetbrains.kotlin.backend.jvm.JvmBackendContext
 import org.jetbrains.kotlin.backend.jvm.jvmLoweringPhases
@@ -10,38 +11,53 @@ import org.jetbrains.kotlin.backend.konan.NativeGenerationState
 import org.jetbrains.kotlin.backend.konan.driver.phases.CodegenInput
 import org.jetbrains.kotlin.backend.konan.driver.phases.CodegenPhase
 import org.jetbrains.kotlin.backend.wasm.wasmLowerings
+import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.config.phaser.Action
 import org.jetbrains.kotlin.config.phaser.ActionState
-import org.jetbrains.kotlin.config.phaser.BeforeOrAfter
 import org.jetbrains.kotlin.config.phaser.NamedCompilerPhase
-import org.jetbrains.kotlin.config.phaser.PhaseConfig
-import org.jetbrains.kotlin.config.phaser.PhaserState
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 
 /**
  * Created by benny.
  */
-fun registerPrinterForOptimizedIr() {
+fun registerPrinterForOptimizedIr(configuration: CompilerConfiguration) {
     registerPrinterForJvmTargets()
-    registerPrinterForNativeTargets()
+    registerPrinterForNativeTargets(configuration)
     registerPrinterForWasmTargets()
 }
 
-private class JvmIrPrinterOpt(private val outputPath: String): NamedCompilerPhase<JvmBackendContext, IrModuleFragment, IrModuleFragment>("JvmIrPrinterOpt"){
-    override fun phaseBody(
-        context: JvmBackendContext,
-        input: IrModuleFragment
-    ): IrModuleFragment {
-        printIr(input, outputPath)
-        return input
+private fun <Context, Data> NamedCompilerPhase<*, *, *>.addPreaction(
+    action: Action<Data, Context>,
+    replaceByClassName: Boolean = false,
+) {
+    synchronized(NamedCompilerPhase::class.java) {
+        val preactionsField = NamedCompilerPhase::class.java.getDeclaredField("preactions")
+        preactionsField.isAccessible = true
+        @Suppress("UNCHECKED_CAST")
+        val current = preactionsField.get(this) as Set<Action<Data, Context>>
+        val copyOnWriteSet = current as? CopyOnWriteArraySet<Action<Data, Context>>
+            ?: CopyOnWriteArraySet(current).also {
+                preactionsField.set(this, it)
+            }
+        if (replaceByClassName) {
+            copyOnWriteSet.removeIf { it.javaClass.name == action.javaClass.name }
+        }
+        copyOnWriteSet.add(action)
     }
+}
 
-    override fun outputIfNotEnabled(phaseConfig: PhaseConfig, phaserState: PhaserState, context: JvmBackendContext, input: IrModuleFragment) = input
+private object JvmIrPrinterOpt : Action<IrModuleFragment, JvmBackendContext> {
+    override fun invoke(p1: ActionState, data: IrModuleFragment, context: JvmBackendContext) {
+        val configuration = context.configuration
+        if (Options.isOptimizedIrEnabled[configuration]) {
+            printIr(data, Options.outputDirOptPath[configuration], configuration)
+        }
+    }
 }
 
 private fun registerPrinterForJvmTargets() {
     try {
-        (jvmLoweringPhases as MutableList<NamedCompilerPhase<JvmBackendContext, IrModuleFragment, IrModuleFragment>>).add(JvmIrPrinterOpt(Options.outputDirOptPath()))
+        jvmLoweringPhases.last().addPreaction(JvmIrPrinterOpt)
         logger.warn("Register the printer of optimized IR for JVM targets.")
     } catch (_: NoClassDefFoundError) {
         logger.info("The printer of optimized IR for JVM targets is ignored.")
@@ -50,19 +66,19 @@ private fun registerPrinterForJvmTargets() {
     }
 }
 
-private fun getIrPrinterForNativeTargets(outputDirOptPath: String): Action<CodegenInput, NativeGenerationState> =
-    fun(_: ActionState, data: CodegenInput, _: NativeGenerationState) {
-        printIr(data.irModule, outputDirOptPath)
+private class NativeIrPrinterOpt(
+    private val configuration: CompilerConfiguration,
+) : Action<CodegenInput, NativeGenerationState> {
+    override fun invoke(p1: ActionState, data: CodegenInput, state: NativeGenerationState) {
+        if (Options.isOptimizedIrEnabled[configuration]) {
+            printIr(data.irModule, Options.outputDirOptPath[configuration], configuration)
+        }
     }
+}
 
-private fun registerPrinterForNativeTargets() {
+private fun registerPrinterForNativeTargets(configuration: CompilerConfiguration) {
     try {
-        val preactionsField = NamedCompilerPhase::class.java.getDeclaredField("preactions")
-        preactionsField.isAccessible = true
-        @Suppress("UNCHECKED_CAST") 
-        val preactions = preactionsField.get(CodegenPhase) as MutableSet<Action<CodegenInput, NativeGenerationState>>
-        preactions.add(getIrPrinterForNativeTargets(Options.outputDirOptPath()))
-
+        CodegenPhase.addPreaction(NativeIrPrinterOpt(configuration), replaceByClassName = true)
         logger.warn("Register the printer of optimized IR for native targets.")
     } catch (_: NoClassDefFoundError) {
         logger.info("The printer of optimized IR for native targets is ignored.")
@@ -71,19 +87,18 @@ private fun registerPrinterForNativeTargets() {
     }
 }
 
-private fun getIrPrinterForWasmTargets(outputDirOptPath: String): Action<IrModuleFragment, LoweringContext> =
-    fun(_: ActionState, data: IrModuleFragment, _: LoweringContext) {
-        printIr(data, outputDirOptPath)
+private object WasmIrPrinterOpt : Action<IrModuleFragment, LoweringContext> {
+    override fun invoke(p1: ActionState, data: IrModuleFragment, context: LoweringContext) {
+        val configuration = context.configuration
+        if (Options.isOptimizedIrEnabled[configuration]) {
+            printIr(data, Options.outputDirOptPath[configuration], configuration)
+        }
     }
+}
 
 private fun registerPrinterForWasmTargets() {
     try {
-        val preactionsField = NamedCompilerPhase::class.java.getDeclaredField("preactions")
-        preactionsField.isAccessible = true
-        @Suppress("UNCHECKED_CAST")
-        val preactions = preactionsField.get(wasmLowerings.last()) as MutableSet<Action<IrModuleFragment, LoweringContext>>
-        preactions.add(getIrPrinterForWasmTargets(Options.outputDirOptPath()))
-
+        wasmLowerings.last().addPreaction(WasmIrPrinterOpt)
         logger.warn("Register the printer of optimized IR for wasm targets.")
     } catch (_: NoClassDefFoundError) {
         logger.info("The printer of optimized IR for wasm targets is ignored.")

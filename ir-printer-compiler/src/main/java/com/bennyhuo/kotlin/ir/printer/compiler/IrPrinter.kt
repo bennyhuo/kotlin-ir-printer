@@ -5,6 +5,7 @@ import com.bennyhuo.kotlin.source.printer.builtin.KotlinLikeDumpOptions
 import com.bennyhuo.kotlin.source.printer.builtin.dumpKotlinLike
 import com.bennyhuo.kotlin.source.printer.compose.dumpSrc
 import java.io.File
+import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 import org.jetbrains.kotlin.ir.declarations.name
 import org.jetbrains.kotlin.ir.declarations.path
@@ -17,15 +18,19 @@ const val OUTPUT_TYPE_RAW_IR = 0
 const val OUTPUT_TYPE_KOTLIN_LIKE = 1
 const val OUTPUT_TYPE_KOTLIN_LIKE_JC = 2
 
-internal fun printIr(moduleFragment: IrModuleFragment, outputDirPath: String) {
+internal fun printIr(
+    moduleFragment: IrModuleFragment,
+    outputDirPath: String,
+    configuration: CompilerConfiguration? = null,
+) {
     if (outputDirPath.isBlank()) return
     val moduleName = moduleFragment.name.asStringStripSpecialMarkers()
     val outputDir = File(outputDirPath, moduleName)
     outputDir.deleteRecursively()
     logger.warn("Print IR to ${outputDir.path}, module: $moduleName.")
 
-    val indent = Options.indent().takeIf { it.isNotEmpty() } ?: "  "
-    val outputType = Options.outputType()
+    val indent = Options.indent[configuration].takeIf { it.isNotEmpty() } ?: "  "
+    val outputType = Options.outputType[configuration]
 
     moduleFragment.files.forEach { irFile ->
         outputDir.resolve(irFile.packageFqName.asString().replace('.', File.separatorChar)).run {

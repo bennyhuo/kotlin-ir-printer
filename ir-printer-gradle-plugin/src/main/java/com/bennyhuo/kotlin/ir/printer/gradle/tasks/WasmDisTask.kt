@@ -37,9 +37,21 @@ abstract class WasmDisTask : DefaultTask() {
     fun run() {
         val inputDir = File(inputPath.get())
         val llvmDisPathValue = wasmDisPath.get().value
+        val outputDir = File(outputPath.get()).apply { mkdirs() }
         inputDir.list()?.filter { it.endsWith(".wasm") }?.forEach {
             val sourceMapFile = File(inputDir, "$it.map")
-            val sourceMapArgs = if (sourceMapFile.exists()) "-sm ${sourceMapFile.name}" else ""
+            val sourceMapArgs = if (sourceMapFile.exists()) {
+                val sanitizedSourceMapFile = File(temporaryDir, sourceMapFile.name)
+                sanitizedSourceMapFile.writeText(
+                    sourceMapFile.readText().replace(
+                        Regex(""""sourcesContent"\s*:\s*\[(?:\s*null\s*,?)*]"""),
+                        """"sourcesContent":[]""",
+                    ),
+                )
+                "-sm ${sanitizedSourceMapFile.absolutePath}"
+            } else {
+                ""
+            }
             val outputFileName = "${it.removeSuffix(".wasm")}.wat"
             val result = executeCommand("$llvmDisPathValue $it -o $outputFileName $sourceMapArgs", inputDir, logger)
             if(!result.isOk) {
@@ -47,7 +59,7 @@ abstract class WasmDisTask : DefaultTask() {
             }
         }
         inputDir.listFiles()?.filter { it.name.endsWith(".wat") }?.forEach {
-            it.renameTo(File(outputPath.get(), it.name))
+            it.renameTo(File(outputDir, it.name))
         }
     }
 }

@@ -16,7 +16,6 @@ lateinit var logger: Logger
 @AutoService(CompilerPluginRegistrar::class)
 class IrPrinterCompilerPluginRegistrar : CompilerPluginRegistrar() {
 
-    private val extension = IrSourcePrinterExtension()
     override val pluginId: String = BuildConfig.KOTLIN_PLUGIN_ID
 
     override val supportsK2: Boolean = true
@@ -25,9 +24,9 @@ class IrPrinterCompilerPluginRegistrar : CompilerPluginRegistrar() {
         logger = Logger(configuration.get(CLIConfigurationKeys.ORIGINAL_MESSAGE_COLLECTOR_KEY))
 
         Option.initialize(configuration)
-        IrGenerationExtension.registerExtension(extension)
-        if (Options.isOptimizedIrEnabled()) {
-            registerPrinterForOptimizedIr()
+        IrGenerationExtension.registerExtension(IrSourcePrinterExtension(configuration))
+        if (Options.isOptimizedIrEnabled[configuration]) {
+            registerPrinterForOptimizedIr(configuration)
         }
     }
 }

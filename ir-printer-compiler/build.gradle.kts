@@ -14,7 +14,7 @@ dependencies {
     compileOnly("org.jetbrains.kotlin:kotlin-compiler-embeddable")
     compileOnly("org.jetbrains.kotlin:kotlin-native-compiler-embeddable")
 
-    implementation("com.bennyhuo.kotlin:kotlin-source-printer:2.4.0-1.3.2-SNAPSHOT") {
+    implementation("com.bennyhuo.kotlin:kotlin-source-printer:2.4.0-1.3.2") {
         exclude("org.jetbrains.kotlin")
     }
 
@@ -23,7 +23,7 @@ dependencies {
 
     testImplementation(kotlin("test-junit"))
     testImplementation("org.jetbrains.kotlin:kotlin-compiler-embeddable")
-    testImplementation("com.bennyhuo.kotlin:kotlin-compile-testing-extensions:2.4.0-1.3.2-SNAPSHOT")
+    testImplementation("com.bennyhuo.kotlin:kotlin-compile-testing-extensions:2.4.0-1.3.2")
 }
 
 kotlin {
