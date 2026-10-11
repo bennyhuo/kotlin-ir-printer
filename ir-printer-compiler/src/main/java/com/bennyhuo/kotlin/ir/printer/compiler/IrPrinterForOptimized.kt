@@ -9,6 +9,7 @@ import org.jetbrains.kotlin.backend.jvm.jvmLoweringPhases
 import org.jetbrains.kotlin.backend.konan.NativeGenerationState
 import org.jetbrains.kotlin.backend.konan.driver.phases.CodegenInput
 import org.jetbrains.kotlin.backend.konan.driver.phases.CodegenPhase
+import org.jetbrains.kotlin.backend.wasm.wasmLowerings
 import org.jetbrains.kotlin.config.phaser.Action
 import org.jetbrains.kotlin.config.phaser.ActionState
 import org.jetbrains.kotlin.config.phaser.BeforeOrAfter
@@ -80,10 +81,7 @@ private fun registerPrinterForWasmTargets() {
         val preactionsField = NamedCompilerPhase::class.java.getDeclaredField("preactions")
         preactionsField.isAccessible = true
         @Suppress("UNCHECKED_CAST")
-        val wasmLoweringPhasesKtClass = Class.forName("org.jetbrains.kotlin.backend.wasm.WasmLoweringPhasesKt")
-        val validateIrAfterLoweringField = wasmLoweringPhasesKtClass.getDeclaredField("validateIrAfterLowering")
-        validateIrAfterLoweringField.isAccessible = true
-        val preactions = preactionsField.get(validateIrAfterLoweringField.get(null)) as MutableSet<Action<IrModuleFragment, LoweringContext>>
+        val preactions = preactionsField.get(wasmLowerings.last()) as MutableSet<Action<IrModuleFragment, LoweringContext>>
         preactions.add(getIrPrinterForWasmTargets(Options.outputDirOptPath()))
 
         logger.warn("Register the printer of optimized IR for wasm targets.")

@@ -1,5 +1,5 @@
 plugins {
-    kotlin("jvm") version "2.3.0" apply false
+    kotlin("jvm") version "2.4.0" apply false
     id("org.jetbrains.dokka") version "1.7.10" apply false
     id("com.github.gmazzo.buildconfig") version "2.1.0" apply false
     id("com.vanniktech.maven.publish") version "0.31.0" apply false
@@ -10,6 +10,7 @@ subprojects {
     repositories {
         mavenCentral()
         maven("https://oss.sonatype.org/content/repositories/snapshots/")
+        maven("https://central.sonatype.com/repository/maven-snapshots/")
     }
 
     if (!name.startsWith("sample") && parent?.name?.startsWith("sample") != true) {

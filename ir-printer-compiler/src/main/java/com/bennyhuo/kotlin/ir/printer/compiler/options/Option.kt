@@ -7,7 +7,7 @@ import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.config.CompilerConfigurationKey
 import java.lang.ref.WeakReference
 
-class Option<T : Any?>(
+class Option<T : Any>(
     name: String,
     private val defaultValue: T,
     description: String,
@@ -32,7 +32,7 @@ class Option<T : Any?>(
             is Boolean -> value?.toBooleanStrictOrNull() ?: defaultValue
             is Int -> value?.toIntOrNull() ?: defaultValue
             else -> value
-        } as T
+        } as T?
 
         if (typedValue != null) {
             configuration.put(key, typedValue)
